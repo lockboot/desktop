@@ -65,7 +65,7 @@ export function registerCpmTerminal(desktop: Desktop): void {
     requestAnimationFrame(() => terminal.focus());
 
     // Create workspace for this CP/M instance
-    const workspace = new CpmWorkspace('/cpm');
+    const workspace = new CpmWorkspace('./cpm');
 
     // Show loading message
     terminal.writeString('CP/M 2.2 Virtual Machine\r\n');

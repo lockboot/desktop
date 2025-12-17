@@ -121,7 +121,7 @@ export function registerWorkspaceManager(desktop: Desktop): void {
     }
 
     // Create workspace
-    const workspace = new CpmWorkspace('/cpm');
+    const workspace = new CpmWorkspace('./cpm');
 
     // State
     let currentFile: { drive: string; name: string } | null = null;
@@ -691,7 +691,7 @@ export function registerWorkspaceManager(desktop: Desktop): void {
 
       // Load available packages dynamically
       try {
-        const packages = await fetchAvailablePackages('/cpm');
+        const packages = await fetchAvailablePackages('./cpm');
         // Filter out 'core' and packages already on this drive
         const driveConfig = workspace.getDriveConfig(letter);
         const loadedPkgs = driveConfig?.packages || [];

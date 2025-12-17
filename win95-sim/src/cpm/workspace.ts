@@ -118,7 +118,7 @@ export interface PackageInfo {
  * @param baseUrl - Base URL for the packages (default: '/cpm')
  * @returns Array of available packages
  */
-export async function fetchAvailablePackages(baseUrl = '/cpm'): Promise<PackageInfo[]> {
+export async function fetchAvailablePackages(baseUrl = './cpm'): Promise<PackageInfo[]> {
   const url = `${baseUrl}/packages.json`;
   const response = await fetch(url);
   if (!response.ok) {
@@ -325,7 +325,7 @@ export class CpmWorkspace implements Workspace {
    *
    * @param packageBaseUrl - Base URL for loading packages (default: '/cpm')
    */
-  constructor(packageBaseUrl = '/cpm') {
+  constructor(packageBaseUrl = './cpm') {
     this.packageBaseUrl = packageBaseUrl;
     this.virtualFS = new WorkspaceFS(this.driveManager);
   }

@@ -575,7 +575,7 @@ export const ASSEMBLERS: Record<string, AssemblerConfig> = {
       'MTPLUS.000', 'MTPLUS.001', 'MTPLUS.002', 'MTPLUS.003',
       'MTPLUS.004', 'MTPLUS.005', 'MTPLUS.006'
     ],
-    basePath: '/cpm/pascal-mt',
+    basePath: './cpm/pascal-mt',
     package: 'pascal-mt',
     // Two-phase: compile then link
     // Source (PROGRAM.ERL) is on A:, PASLIB is on B: (tools drive)
@@ -594,8 +594,8 @@ export const ASSEMBLERS: Record<string, AssemblerConfig> = {
     errorPatterns: ['error', 'unmatched', 'undefined', 'illegal', 'no file'],
     // Runtime files needed to execute .INT files
     supportFiles: ['CRUN2.COM'],
-    basePath: '/cpm/cbasic2',
-    package: 'cbasic2',
+    basePath: './cpm/cbasic',
+    package: 'cbasic',
     // CBASIC is interpreted - run via CRUN2 runtime
     runtime: 'CRUN2',
     runtimeArgs: '{name}',
@@ -623,7 +623,7 @@ export const ASSEMBLERS: Record<string, AssemblerConfig> = {
     listingExts: [],
     errorPatterns: ['error', 'unknown', 'illegal', 'expected'],
     supportFiles: ['TURBO.MSG', 'TURBO.OVR'],
-    basePath: '/cpm/turbo-pascal-3',
+    basePath: './cpm/turbo-pascal-3',
     package: 'turbo-pascal-3',
     showTerminal: true,
     noDrivePrefix: true,
@@ -651,7 +651,7 @@ export const ASSEMBLERS: Record<string, AssemblerConfig> = {
     errorPatterns: ['error', 'ERROR', 'illegal', 'undefined', 'unknown', 'no file'],
     // BDS C needs CC2.COM (second pass), plus library, runtime, and header files
     supportFiles: ['CC2.COM', 'CLINK.COM', 'DEFF.CRL', 'DEFF2.CRL', 'C.CCC', 'work/STDIO.H'],
-    basePath: '/cpm/bds-c/bdsc160',
+    basePath: './cpm/bds-c',
     package: 'bds-c',
     // Two-phase: CC compiles .C to .CRL, CLINK links .CRL to .COM
     linker: 'CLINK',

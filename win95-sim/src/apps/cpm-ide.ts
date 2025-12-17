@@ -126,7 +126,7 @@ export function registerCpmIde(desktop: Desktop): void {
     content.appendChild(ideContainer);
 
     // Create workspace for this IDE instance
-    const workspace = new CpmWorkspace('/cpm');
+    const workspace = new CpmWorkspace('./cpm');
     let workspaceInitialized = false;
 
     // Initialize workspace with packages
