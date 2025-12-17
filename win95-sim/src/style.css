@@ -1,0 +1,570 @@
+/* Theme imports */
+@import './themes/nirvana.css';
+@import './themes/classic.css';
+@import './themes/mobile.css';
+
+/* CSS Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+/* Base Variables - themes override these */
+:root {
+  --desktop-bg: #808080;
+  --window-bg: #c0c0c0;
+  --window-content-bg: #ffffff;
+  --titlebar-active: #808080;
+  --titlebar-inactive: #606060;
+  --titlebar-text: #ffffff;
+  --button-face: #c0c0c0;
+  --button-highlight: #ffffff;
+  --button-shadow: #808080;
+  --button-border: none;
+  --button-border-pressed: none;
+  --input-border: 1px solid #808080;
+  --window-border: 1px solid #808080;
+  --border-width: 1px;
+  --titlebar-height: 24px;
+  --taskbar-height: 28px;
+  --font-size: 11px;
+}
+
+/* Base Structure */
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: sans-serif;
+  font-size: var(--font-size);
+}
+
+#desktop {
+  width: 100%;
+  height: 100%;
+  background: var(--desktop-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Taskbar Structure */
+#taskbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--taskbar-height);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  z-index: 10000;
+}
+
+#start-button {
+  height: 22px;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: var(--font-size);
+}
+
+#start-button .win-logo {
+  width: 16px;
+  height: 16px;
+}
+
+#start-button .win-logo::before {
+  display: none;
+}
+
+#task-area {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  padding: 0 4px;
+  overflow: hidden;
+}
+
+.task-button {
+  height: 22px;
+  flex: 1 1 120px;
+  min-width: 80px;
+  max-width: 280px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-app-name {
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.task-window-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.task-button .icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Task Switcher Structure */
+#task-switcher {
+  height: 22px;
+  padding: 2px 6px;
+  display: none;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  margin-right: 2px;
+}
+
+#task-switcher .arrow {
+  font-size: 10px;
+}
+
+#task-switcher .count {
+  font-weight: bold;
+}
+
+#task-switcher-menu {
+  min-width: 150px;
+}
+
+.task-switcher-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.task-switcher-item.minimized {
+  font-style: italic;
+}
+
+.task-switcher-app-header {
+  padding: 6px 12px;
+  font-weight: bold;
+  font-size: 11px;
+}
+
+.task-switcher-app:last-child {
+  border-bottom: none;
+}
+
+.task-switcher-app-windows {
+  padding-left: 12px;
+}
+
+.task-switcher-window {
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  position: relative;
+}
+
+.task-switcher-window.minimized {
+  font-style: italic;
+}
+
+.task-switcher-window.active::before {
+  content: '▶';
+  position: absolute;
+  left: -0.5em;
+  top: 0.7em;
+  font-size: 8px;
+}
+
+/* App Submenu Structure */
+#app-submenu {
+  min-width: 150px;
+}
+
+.app-submenu-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.app-submenu-item.minimized {
+  font-style: italic;
+}
+
+.app-submenu-item.active {
+  font-weight: bold;
+}
+
+/* Task count badge */
+.task-count {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: auto;
+}
+
+#system-tray {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  gap: 8px;
+}
+
+#clock {
+  font-size: 11px;
+}
+
+.tray-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Menu System */
+#menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+}
+
+.menu {
+  position: absolute;
+  display: none;
+  z-index: 10001;
+}
+
+.menu.visible {
+  display: block;
+}
+
+/* Position classes - themes control exact values */
+.menu.menu-below {
+  top: var(--taskbar-height);
+  bottom: auto;
+}
+
+.menu.menu-above {
+  bottom: var(--taskbar-height);
+  top: auto;
+}
+
+/* Start Menu Structure */
+#start-menu {
+  left: 0;
+  width: 200px;
+  overflow: hidden;
+}
+
+#start-menu-sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 8px;
+}
+
+#start-menu-sidebar span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-weight: bold;
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+#start-menu-items {
+  margin-left: 28px;
+  padding: 0;
+}
+
+.menu-item {
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.menu-item .icon {
+  width: 32px;
+  height: 32px;
+}
+
+.menu-item span {
+  font-size: 11px;
+}
+
+.menu-separator {
+  height: 2px;
+  margin: 4px 24px 4px 36px;
+}
+
+/* Window Structure */
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  min-height: 100px;
+  contain: layout style;
+  will-change: transform;
+}
+
+/* During drag/resize, simplify all windows for performance */
+body.dragging .window {
+  box-shadow: none !important;
+  will-change: auto;
+}
+
+.window.minimized {
+  display: none;
+}
+
+.window.maximized {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+}
+
+.window-titlebar {
+  height: var(--titlebar-height);
+  display: flex;
+  align-items: center;
+  padding: 2px 2px 2px 4px;
+  cursor: move;
+}
+
+.window-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}
+
+.window-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.window-controls {
+  display: flex;
+  gap: 3px;
+}
+
+.window-btn {
+  width: 20px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: bold;
+}
+
+.btn-minimize::after { content: '_'; position: relative; top: 0px; }
+.btn-maximize::after { content: ''; width: 8px; height: 8px; border: 1px solid #000; border-top-width: 2px; }
+.btn-close::after { content: 'X'; }
+
+.window-content {
+  flex: 1;
+  margin: 2px;
+  overflow: hidden;
+}
+
+/* CP/M Terminal */
+.cpm-terminal {
+  outline: none;
+  cursor: text;
+}
+
+.cpm-terminal:focus {
+  outline: 1px solid #0f0; /* Debug: visible focus indicator */
+}
+
+.window-overlay {
+  position: absolute;
+  top: 24px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+}
+
+.window.inactive .window-overlay {
+  display: block;
+}
+
+/* Resize handles */
+.resize-handle {
+  position: absolute;
+  background: transparent;
+}
+.resize-n { top: -4px; left: 4px; right: 4px; height: 8px; cursor: n-resize; }
+.resize-s { bottom: -4px; left: 4px; right: 4px; height: 8px; cursor: s-resize; }
+.resize-e { right: -4px; top: 4px; bottom: 4px; width: 8px; cursor: e-resize; }
+.resize-w { left: -4px; top: 4px; bottom: 4px; width: 8px; cursor: w-resize; }
+.resize-ne { top: -4px; right: -4px; width: 12px; height: 12px; cursor: ne-resize; }
+.resize-nw { top: -4px; left: -4px; width: 12px; height: 12px; cursor: nw-resize; }
+.resize-se { bottom: -4px; right: -4px; width: 12px; height: 12px; cursor: se-resize; }
+.resize-sw { bottom: -4px; left: -4px; width: 12px; height: 12px; cursor: sw-resize; }
+
+/* Drag outline - uses difference blend mode for XOR-like visibility on any background */
+.drag-outline {
+  position: absolute;
+  border: 2px dashed #ffffff;
+  background: transparent;
+  pointer-events: none;
+  z-index: 99999;
+  display: none;
+  mix-blend-mode: difference;
+}
+
+/* Theme Picker Structure */
+#theme-picker {
+  min-width: 160px;
+  padding: 4px 0;
+  z-index: 10002; /* Above other menus for theme picker in start menu */
+}
+
+.theme-option {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-option.active {
+  font-weight: bold;
+}
+
+.theme-option.active::before {
+  content: '✓';
+  position: absolute;
+  left: 4px;
+}
+
+.theme-option .theme-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Shutdown */
+.shutdown-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 24px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  :root {
+    --taskbar-height: 24px;
+    --titlebar-height: 20px;
+    --font-size: 10px;
+  }
+
+  #app {
+    zoom: 1.4;
+  }
+
+  #taskbar {
+    padding: 1px;
+  }
+
+  #start-button {
+    height: 20px;
+    padding: 1px 4px;
+    font-size: 10px;
+  }
+
+  #start-button .win-logo {
+    width: 14px;
+    height: 14px;
+  }
+
+  .task-button {
+    height: 20px;
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+
+  #system-tray {
+    height: 20px;
+    padding: 0 4px;
+    font-size: 10px;
+  }
+
+  #task-switcher {
+    height: 20px;
+    padding: 1px 4px;
+    font-size: 10px;
+  }
+
+  .window:not(.minimized) {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: calc(100% - var(--taskbar-height)) !important;
+  }
+
+  .theme-classic .window:not(.minimized) {
+    top: var(--taskbar-height) !important;
+  }
+
+  .theme-nirvana .window:not(.minimized) {
+    top: 0 !important;
+  }
+
+  .theme-mobile .window:not(.minimized) {
+    top: 0 !important;
+    height: calc(100% - 52px) !important; /* mobile taskbar is 52px */
+  }
+
+  .resize-handle { display: none; }
+  .window-btn.btn-maximize { display: none; }
+
+  #clock { display: none; }
+
+  #task-area .task-button { display: none; }
+  #task-area .task-button.active { display: flex; flex: 1; max-width: none; }
+
+  #start-menu { width: 100%; }
+
+  #theme-picker {
+    left: 24px !important;
+    right: 0 !important;
+    width: auto !important;
+  }
+}

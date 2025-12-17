@@ -1,0 +1,18 @@
+{
+  "name": "CP/M Core Utilities",
+  "version": "1.0",
+  "description": "Essential shell and utilities for CP/M - always loaded",
+  "outputDir": "core",
+  "files": [
+    { "src": "xccp.com" },
+    { "src": "dir.com" },
+    { "src": "era.com" },
+    { "src": "ren.com" },
+    { "src": "d.com" }
+  ],
+  "meta": {
+    "type": "core",
+    "alwaysLoad": true,
+    "shell": "XCCP.COM"
+  }
+}

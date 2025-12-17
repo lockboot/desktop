@@ -1,0 +1,243 @@
+/* Nirvana Theme - Windows 95 style */
+.theme-nirvana {
+  --desktop-bg: #008080;
+  --window-bg: #c0c0c0;
+  --window-content-bg: #ffffff;
+  --titlebar-active: linear-gradient(to right, #000080, #1084d0);
+  --titlebar-inactive: linear-gradient(to right, #808080, #a0a0a0);
+  --titlebar-text: #ffffff;
+  --button-face: #c0c0c0;
+  --button-highlight: #ffffff;
+  --button-shadow: #808080;
+  --button-border: 2px outset #ffffff;
+  --button-border-pressed: 2px inset #808080;
+  --input-border: 2px inset #808080;
+  --selection-bg: #000080;
+  --selection-text: #ffffff;
+  --border-width: 2px;
+  --titlebar-height: 24px;
+  --taskbar-height: 28px;
+  --window-border: 2px outset #ffffff;
+  --font-size: 11px;
+}
+
+.theme-nirvana #app {
+  font-family: 'MS Sans Serif', 'Segoe UI', Tahoma, sans-serif;
+}
+
+.theme-nirvana #desktop {
+  background: var(--desktop-bg);
+}
+
+.theme-nirvana #taskbar {
+  bottom: 0;
+  top: auto;
+  background: var(--button-face);
+  border-top: var(--border-width) solid var(--button-highlight);
+  border-bottom: none;
+}
+
+.theme-nirvana #start-button {
+  background: var(--button-face);
+  border: var(--button-border);
+}
+
+.theme-nirvana #start-button:active,
+.theme-nirvana #start-button.menu-open {
+  border: var(--button-border-pressed);
+}
+
+.theme-nirvana #start-button .win-logo {
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(135deg, #ff0000 25%, #00ff00 25%, #00ff00 50%, #0000ff 50%, #0000ff 75%, #ffff00 75%);
+}
+
+.theme-nirvana .task-button {
+  background: #c0c0c0;
+  border: 2px outset #ffffff;
+}
+
+.theme-nirvana .task-button.active {
+  border: 2px inset #808080;
+  background: #ffffff;
+}
+
+.theme-nirvana .task-button .icon {
+  background: #000080;
+}
+
+.theme-nirvana #task-switcher {
+  background: #c0c0c0;
+  border: 2px outset #ffffff;
+}
+
+.theme-nirvana #task-switcher:active,
+.theme-nirvana #task-switcher.menu-open {
+  border: 2px inset #808080;
+}
+
+.theme-nirvana #task-switcher-menu {
+  bottom: 28px;
+  top: auto;
+  right: 60px;
+  left: auto;
+  background: #c0c0c0;
+  border: 2px outset #ffffff;
+}
+
+.theme-nirvana .task-switcher-item:hover,
+.theme-nirvana .task-switcher-window:hover {
+  background: #000080;
+  color: #ffffff;
+}
+
+.theme-nirvana .task-switcher-item.minimized,
+.theme-nirvana .task-switcher-window.minimized {
+  color: #808080;
+}
+
+.theme-nirvana .task-switcher-item.minimized:hover,
+.theme-nirvana .task-switcher-window.minimized:hover {
+  color: #ffffff;
+}
+
+.theme-nirvana .task-switcher-app {
+  border-bottom: 1px solid #808080;
+}
+
+.theme-nirvana .task-switcher-app.active .task-switcher-app-header {
+  background: #000080;
+  color: #ffffff;
+}
+
+.theme-nirvana .task-switcher-window.active {
+  background: #d0d0d0;
+}
+
+.theme-nirvana #app-submenu {
+  bottom: var(--taskbar-height);
+  top: auto;
+  background: #c0c0c0;
+  border: 2px outset #ffffff;
+}
+
+.theme-nirvana .app-submenu-item:hover {
+  background: #000080;
+  color: #ffffff;
+}
+
+.theme-nirvana .app-submenu-item.minimized {
+  color: #808080;
+}
+
+.theme-nirvana .app-submenu-item.minimized:hover {
+  color: #ffffff;
+}
+
+.theme-nirvana .task-count {
+  background: #000080;
+  color: #ffffff;
+}
+
+.theme-nirvana #system-tray {
+  background: #c0c0c0;
+  border: 2px inset #808080;
+}
+
+.theme-nirvana .tray-icon {
+  background: #808080;
+}
+
+.theme-nirvana #start-menu {
+  bottom: 28px;
+  top: auto;
+  background: #c0c0c0;
+  border: 2px outset #ffffff;
+}
+
+.theme-nirvana #start-menu-sidebar {
+  background: linear-gradient(to top, #000080, #1084d0);
+}
+
+.theme-nirvana #start-menu-sidebar span {
+  color: #c0c0c0;
+}
+
+.theme-nirvana .menu-item:hover {
+  background: #000080;
+  color: #ffffff;
+}
+
+.theme-nirvana .menu-item .icon {
+  background: #808080;
+}
+
+.theme-nirvana .menu-separator {
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid #ffffff;
+}
+
+.theme-nirvana .window {
+  background: var(--window-bg);
+  border: var(--window-border);
+}
+
+.theme-nirvana .window-titlebar {
+  background: var(--titlebar-active);
+}
+
+.theme-nirvana .window.inactive .window-titlebar {
+  background: var(--titlebar-inactive);
+}
+
+.theme-nirvana .window-icon {
+  background: #c0c0c0;
+}
+
+.theme-nirvana .window-title {
+  color: #ffffff;
+}
+
+.theme-nirvana .window-btn {
+  background: #c0c0c0;
+  border: 2px outset #ffffff;
+}
+
+.theme-nirvana .window-btn:active {
+  border: 2px inset #808080;
+}
+
+.theme-nirvana .window-content {
+  background: var(--window-content-bg);
+  border: var(--input-border);
+}
+
+.theme-nirvana .window.maximized {
+  height: calc(100% - 28px) !important;
+}
+
+.theme-nirvana #theme-picker {
+  bottom: var(--taskbar-height);
+  top: auto;
+  background: #c0c0c0;
+  border: 2px outset #ffffff;
+}
+
+.theme-nirvana .theme-option:hover {
+  background: #000080;
+  color: #ffffff;
+}
+
+.theme-nirvana .theme-option .theme-icon {
+  border: 1px solid #808080;
+}
+
+.theme-nirvana .shutdown-screen {
+  background: #000;
+  color: #ff8000;
+}
+
+.theme-nirvana .icon-shutdown {
+  background: #ff0000;
+}

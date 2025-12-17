@@ -1,0 +1,204 @@
+                  D -- A Z80 Directory Program
+
+
+     D is a directory program written for CP/M 2.x and above.  It 
+is  designed to give most of the information required by a  user, 
+yet still be compact.  It was originally written for CP/M 3.0 but 
+has been revamped to work for the 2.x versions, also.
+
+     D  supports  many options to help the user obtain  just  the 
+information s/he desires.  It will take a little time to get used 
+to  these options,  but they will become easier to use and  their 
+value and power will become more obvious as time goes on.
+
+
+     A summary of the options for D follows:
+
+
+          a -- get only archived files
+          b -- include system files
+          c -- comprehensive -- complete fcb info
+          f -- suppress filesize
+          g -- get from user # nn
+          n -- no form feed to printer
+          p -- going to the printer
+          r -- get only read-only files
+          s -- get only system files
+          u -- include all users
+          w -- get only r/w files
+          x -- do not sort the directory
+          z -- get only non-archived files
+
+Options are specified with a left bracket:
+
+          d b:[a    (or d b:[a] if you prefer) gets all the
+                    archived files from the current user #
+                    on drive b:.
+
+          d e:[g4   gets all the non-system files from user 4
+                    on e:.
+
+          d [sr     gets all the read-only system files from
+                    the current user of the default disk.
+
+          d foo.*   gets all non-system files named 'foo' from
+                    the current user of the default disk.
+
+                       Option Explanations
+
+a -- get only archived files.  This filters for files with the
+     Archive bit set (The Archive attribute is a CP/M 3.0
+     feature.)  See the z option.
+
+b -- include system files.  Turns off the system file filter.
+     Allows BOTH system and non-system files to be displayed.
+     See the s option.
+
+c -- comprehensive.  Display the complete directory entry.
+     All matching directory entries are shown in their entirety.
+     Options not compatable with the c option are: f,x.  The
+     directory is unsorted for this option.
+
+f -- suppress filesize.  Suppress the file size information.
+     Results in a more compact display.  Usually not used.
+
+g -- get from user # nn.  Specifies which user area to
+     interrogate.  Will not interrogate user 32.  Format is
+     gn or gnn: g2, g15, etc.  Incompatable with the u option.
+     A valuable option if you use user areas.
+
+n -- no form feed to printer.  If the p option is specified,
+     the leading form feed is suppressed.
+
+p -- going to the printer.  Sends the directory to the printer.
+     See the n option.
+
+r -- get only read-only files.  This filters for files that have
+     the RO attribute set.  See the w option.
+
+s -- get only system files.  This filters out the non-system
+     files and allows only system files to be displayed.  See
+     the b option.
+
+u -- include all users.  Searches all user areas for files.
+     Overrides the g option.
+
+w -- get only r/w files.  This filters for files that are not
+     read-only.  See the r option.
+
+x -- do not sort the directory.  The file display is not sorted.
+
+z -- get only non-archived files.  This filters for files that
+     do not have the Archive bit set.  See option a.
+
+
+                            Features
+
+     The  directory display is fairly obvious,  but a  few  items 
+need explanation:
+
+          The default filter is "no system files".
+
+          Sort file entries is also a default.  Files, whether
+          sorted or unsorted are displayed in a columnar format.
+
+          Directory entries displayed in an alternate (dim)
+          format are system entries.
+
+          The letter designating the file size can be 'k'
+          or 'r'.  The units are k (1024 bytes), but the
+          'r' is used to signify that the file is read-only.
+          The 'k' and the 'r' can also be displayed as a
+          'K' and an 'R'.  A capital 'K' or 'R' means that
+          the file has the Archive bit set.
+
+          Alphabetic characters in a directory name are
+          reverse-cased -- All caps become lower-case and
+          all lower-case become caps.
+
+          If a directory entry has a non-printable character
+          in it, that character is replaced by a '?'.
+
+          If the c option is invoked, any space characters
+          with the high-bit set (i.e. an attribute bit) are
+          replaced with an alternate format (dim) '*'.
+
+
+                     Special Considerations
+
+     If you own CP/M 3.0, you may have noticed that single-letter 
+program  names  followed by the name of a file  on  another  disk 
+confuses the CCP.  So if you type (from the prompt) A:>d b:*.bar, 
+the CCP can't find D.   This is a bug in the CCP.   I fixed it in 
+mine,  but  the solution is too complex for a simple fix,  and  I 
+would have trouble getting around DRI in providing a legal fix to 
+it,  so I recommend renaming single-letter programs running under 
+CP/M 3.0 to something else -- like DD.COM for D.COM.
+
+     Be  cautious when the disk in question is set to  read-only.  
+Incredibly spurious results can occur, especially under CP/M 3.0.  
+I could have reset the disk if it was read-only,  but for various 
+reasons  I did not.   So when you see the -- Disk is Read Only -- 
+message, treat the D results with a grain of salt.
+     CP/M  3.0  supports  disk  labels.   These  are  actually  a 
+directory entry under user 32.   D looks for a user 32 entry, and 
+if  it finds one,  it is listed as the disk name just  after  the 
+user/drive callout.   Otherwise, user 32 is not available under D 
+in any other circumstatnces.   If users of CP/M 2.x desire labels 
+on their disks, they must find a way to install a directory label 
+entry  in  user 32.   Any disk utility,  such as DUU or  POWER(r) 
+could  be  used to do this by modifying a 0k directory  entry  to 
+user 32.  Please!! Experienced users only should try this!
+
+
+                          Installation
+
+     D  uses an alternate format for some displays.   Usually the 
+alternate format is dim video.   Of course,  some terminals don't 
+support dim video,  but do support reverse video,  for  instance.  
+In  this case,  the alternate format would be reverse  video.   D 
+comes with dim video set for the TeleVideo 925/950,  or any other 
+terminal that uses the same codes, of course.  To install another 
+code  string set for an alternate format for your system,  it  is 
+necessary  to alter D.COM with a debugger such as DDT or  SID  or 
+ZSID.
+
+Load D.COM under your debugger:  DDT D.COM
+
+The string to change TO the alternate format is located at 118.
+
+The string to change FROM the alternate format back to the normal 
+format is located at 128.
+
+Do a D100 and the setup will be obvious.
+
+Change  the strings as required to support an alternate format on 
+your terminal.   Terminate the strings with a NULL (00).  If your 
+terminal  doesn't support an alternate format,  NULL the  strings 
+out entirely (not the alpha locator strings, though).
+
+After changing the strings, SAVE the new file to your disk:
+
+	CP/M 2.x is SAVE 14 D.COM
+
+	CP/M 3.x users will save from 100 to e7f to DD.COM
+
+The actual method of saving is system/debugger dependant.
+
+                        Legal Mumbo-Jumbo
+
+	D.COM is Copyright (c) 1984 Source Maverick.  You may use 
+D.COM  for  your  own purposes other than selling  it.   You  may 
+distribute it as you wish,  as long as you do not charge for  the 
+program.  D.COM may be distributed on a disk with other programs, 
+for  which there is a copy charge ONLY associated with the  disk.  
+The copy charge may not exceed US $2.00 in 1984 dollars, however.  
+The  author  assumes  no  liability whatsoever  with  respect  to 
+another party's usage of D.COM, your acceptance of this statement 
+being a prerequisite to said party's use of the program.   (After 
+all, you got it for free.)
+
+
+                                   Hank Blake
+                                   Source Maverick
+                                   San Diego, Ca.

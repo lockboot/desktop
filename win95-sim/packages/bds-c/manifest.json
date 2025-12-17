@@ -1,0 +1,19 @@
+{
+  "name": "BDS C",
+  "version": "1.60",
+  "description": "BDS C compiler for CP/M",
+  "outputDir": "bds-c",
+  "files": [
+    { "src": "CC.COM" },
+    { "src": "CC2.COM" },
+    { "src": "CLINK.COM" },
+    { "src": "CLIB.COM" },
+    { "src": "C.CCC" },
+    { "src": "DEFF.CRL" },
+    { "src": "DEFF2.CRL" }
+  ],
+  "meta": {
+    "language": "bds-c",
+    "type": "compiler"
+  }
+}

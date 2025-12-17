@@ -1,0 +1,123 @@
+
+			 R M . C
+
+ File deletion utility
+
+ This routine is a file deletion program for the CP/M-80 environment that
+ operates more or less in the style of UNIX (tm of AT&T) "rm".  Unlike CP/M
+ "erase", multiple filenames can be specified, and each can be
+ regular-expression wildcarded.  Further, it defaults into a verbose mode,
+ and can be run in an interactive query mode.  The plain '-' option is for
+ use with filenames that start with a '-'.
+
+  Usage: rm [-f] [-i] [-q] [-] [s:]filename [filename...]
+
+	        s: => Expand afn only with SYStem attribute files
+		-f => Delete files, even if read-only
+		-i => Interactive query before deleting each file
+		-q => Quiet mode
+		-  => Designates that filenames follow
+
+ The distributed compiled version of this program used the M. Kersenbrock
+ version of croot.c where the filenames are Unix-like regular-expression
+ (ambiguous) filenames.  See the section below for details.
+
+ The handling of "SYStem attribute" and "R/O" are those defined under
+ CP/M 3.0, although this program is also compatible with CP/M 2.2 .
+
+ The compiled binary, when run under CP/M 3.0, will set the system
+ error-status upon error to that value handled by the CCP105 
+ CCP replacement for "make" reasons explained there (if you use CP/M 3.0
+ and haven't replaced your CCP with CCP105, then you're working
+ too hard!).  This program (and CCP105 also) is compiled for Z80 only!
+
+ This program may be freely distributed for non-commercial purposes 
+ so long as notices are retained in their entirety.
+
+ (C) Copyright 1987 by Michael D. Kersenbrock, Aloha, Oregon.  All rights
+ reserved.
+
+		>>---------------------------<<
+
+Note:  The following description is implemented as a much improved and fixed
+       version of "croot.c" over and above the enhanced version published in
+       Dr.  Dobbs' Journal.  I probably will make it available sometime as
+       "KROOTx.C" or some such.  (where 'x' currently is '5').  BTW, I am
+       referencing the Aztec II C compiler.
+
+
+
+I.  Wildcarding is with UNIX-style wildcards (UNIX is a tm of AT&T).
+
+	'*'   -  Matches any string of characters. '*' may be imbedded!
+
+	'?'   -  Matches any single character, NOT including ' '.
+
+	[x-y] -  Matches any character in range of x through y.
+      
+        [^x-y] - Matches any character NOT in range of x through y.
+
+       [a,b,c] - Matches characters a,b,c
+
+	'.'   -  Matches any period in the filename (like any other non-special
+	         character).  The period in a CP/M filename is handled as if
+		 if it were "really there". When the extension is blank the
+		 filename is concidered to both have a "." and not to. Other-
+		 wise the '.' in a filename is handled like UNIX-csh where it
+		 is just another character in the filename.
+
+
+
+	EXAMPLES:   f*.doc	matches fred.doc, free.doc, and fish.doc
+			        does NOT match freddoc
+
+		    f*d.*c	matches fred.doc and freed.pac, but
+				does NOT match free.doc or fred.lbr
+
+		    *doc	matches fred.doc, xx.doc, doc, and freddoc
+
+		   [a-c]*	matches acorn.c, apple.nix, and amiga.yup
+				but not ibmold.hat or portland.zoo
+
+		    cat.*	matches cat.jen and cat.grz 
+
+
+II.   The EXPANDED SYNTAX (on the command line) is:
+
+ 		  > stdout_redir - standard out redirected to file or device
+	         >> stdout_redir - standard out redirected to append to file
+
+		  < stdin_redir  - standard input redirected from file or device
+
+	         2> stderr_redir - standard error redirected to file or device
+	        2>> stderr_redir - standard out redirected to append to file
+
+	      "quoted arguement" - maintains string as a literal arguement
+				   including imbedded spaces and wildcard
+				   characters.
+
+	   | next_command_string - pipes stdout to stdin of next
+		    			  command.
+
+III. Stdin_redir may have wild cards.  If the filename spec matches
+    multiple files, however, it will "nab" the first one !  This feature
+    focuses upon fewer-keystroke-typing where stdin file is unique.
+
+
+IV. Wildcarding will NOT expand any files that have the "SYSTEM" attribute
+    flag set (CP/M 3.0).  You can, of course, still explicitly type the
+    name of a system-file, or use the "s:" specifier.
+
+    In a wild-carded-file-expression (only!) a system-attribute specifier
+    "s:"can be issued.  "s:*.com" specifies all system .com files, and
+    "s:b:fred.*" specifes all the system fred files on disk "b:".
+
+
+V.  Each wildcard expansion results in a SORTED list of matching
+    filenames.
+
+
+
+				-Michael D. Kersenbrock    2/1987
+				 Aloha, Oregon
+				 (USENET: ...!tektronix!copper!michaelk)

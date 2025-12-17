@@ -1,0 +1,464 @@
+/* Mobile Theme - OLED Cockpit / Green Screen */
+.theme-mobile {
+  --desktop-bg: #000000;
+  --window-bg: #000000;
+  --window-content-bg: #0a0a0a;
+  --titlebar-active: #000000;
+  --titlebar-inactive: #000000;
+  --titlebar-text: #00ff41;
+  --button-face: #001a00;
+  --button-highlight: #003300;
+  --button-shadow: #000000;
+  --button-border: 1px solid #00ff41;
+  --button-border-pressed: 1px solid #00cc33;
+  --input-border: 1px solid #00ff41;
+  --window-border: 1px solid #00ff41;
+  --border-width: 1px;
+  --titlebar-height: 44px;
+  --taskbar-height: 52px;
+  --font-size: 14px;
+
+  /* Cockpit colors */
+  --green: #00ff41;
+  --green-dim: #00aa2a;
+  --green-glow: rgba(0, 255, 65, 0.15);
+  --amber: #ffaa00;
+  --red: #ff3333;
+  --red-dim: #a70000;
+}
+
+.theme-mobile #app {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app.theme-mobile {
+  zoom: 1 !important; /* Override mobile zoom - this theme has built-in touch sizing */
+}
+
+.theme-mobile #desktop {
+  background: var(--desktop-bg);
+}
+
+/* Taskbar - thumb-first layout: [title] [switcher] [^] */
+.theme-mobile #taskbar {
+  bottom: 0;
+  top: auto;
+  background: #000;
+  border-top: 1px dotted var(--green);
+  border-bottom: none;
+  height: var(--taskbar-height);
+  padding: 0 5px 0 3px;
+  gap: 5px;
+  flex-direction: row; /* [start] [task-area] [switcher] [tray] -> reorder below */
+}
+
+.theme-mobile #task-area {
+  gap: 7px
+}
+
+/* Reorder: task-area first (title), then switcher, then start button last (right) */
+.theme-mobile #task-area { order: 1; flex: 1; }
+.theme-mobile #task-switcher { order: 2; }
+.theme-mobile #start-button { order: 3; }
+.theme-mobile #system-tray { display: none; } /* Hide clock/tray on mobile */
+
+/* Start button - triangle arrow on the right */
+.theme-mobile #start-button {
+  background: transparent;
+  border: 1px solid var(--green);
+  height: 36px;
+  width: 36px;
+  padding: 0;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--green);
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.theme-mobile #start-button:active,
+.theme-mobile #start-button.menu-open {
+  background: var(--green);
+  color: #000;
+}
+
+.theme-mobile #start-button .win-logo {
+  display: none;
+}
+
+.theme-mobile #start-button span {
+  display: none;
+}
+
+.theme-mobile #start-button::after {
+  content: '▲';
+}
+
+/* Task buttons */
+.theme-mobile .task-button {
+  background: transparent;
+  border: 1px solid var(--green-dim);
+  border-radius: 0;
+  height: 36px;
+  padding: 0 12px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.theme-mobile .task-button:active {
+  background: var(--green);
+  color: #000;
+}
+
+.theme-mobile .task-button.active {
+  background: var(--button-face);
+  border-color: var(--green);
+  box-shadow: 0 0 8px var(--green-glow), inset 0 0 8px var(--green-glow);
+}
+
+.theme-mobile .task-button .icon {
+  display: none;
+}
+
+/* Task switcher */
+.theme-mobile #task-switcher {
+  background: transparent;
+  border: 1px solid var(--green);
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 0;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.theme-mobile #task-switcher:active,
+.theme-mobile #task-switcher.menu-open {
+  background: var(--green);
+  color: #000;
+}
+
+.theme-mobile #task-switcher .arrow {
+  display: none;
+}
+
+/* System tray */
+.theme-mobile #system-tray {
+  background: transparent;
+  border: none;
+  color: var(--green-dim);
+  font-size: 12px;
+  font-weight: bold;
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.theme-mobile .tray-icon {
+  display: none;
+}
+
+/* Start menu - opens from right since start button is on right */
+.theme-mobile #start-menu {
+  bottom: var(--taskbar-height);
+  top: auto;
+  right: 0;
+  left: auto;
+  width: 280px;
+  background: #000;
+  border: 1px solid var(--green);
+  border-radius: 0;
+  box-shadow: 0 0 20px var(--green-glow), inset 0 0 40px rgba(0, 255, 65, 0.03);
+}
+
+.theme-mobile #start-menu-sidebar {
+  background: transparent;
+  border-left: 1px solid var(--green-dim);
+  border-right: none;
+  left: auto !important;
+  right: 0 !important;
+  width: 24px;
+}
+
+.theme-mobile #start-menu-sidebar span {
+  color: var(--green-dim);
+  font-size: 10px;
+  letter-spacing: 2px;
+  margin-left: 5px;
+}
+
+.theme-mobile #start-menu-items {
+  margin-left: 0;
+  margin-right: 24px;
+  padding: 4px;
+}
+
+.theme-mobile .menu-item {
+  padding: 12px 16px;
+  border-radius: 0;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid transparent;
+}
+
+.theme-mobile .menu-item:hover {
+  background: var(--green-dim);
+  color: #000;
+}
+
+.theme-mobile .menu-item:active {
+  background: var(--green);
+  color: #000;
+}
+
+.theme-mobile .menu-item .icon {
+  display: none;
+}
+
+.theme-mobile .menu-separator {
+  border: none;
+  height: 1px;
+  background: var(--green-dim);
+  margin: 4px 8px;
+}
+
+/* Menus */
+.theme-mobile #task-switcher-menu,
+.theme-mobile #app-submenu {
+  bottom: var(--taskbar-height);
+  top: auto;
+  right: 8px;
+  left: auto;
+  background: #000;
+  border: 1px solid var(--green);
+  border-radius: 0;
+  padding: 4px;
+  box-shadow: 0 0 20px var(--green-glow);
+}
+
+.theme-mobile .task-switcher-app {
+  border: none;
+}
+
+.theme-mobile .task-switcher-app-header {
+  padding: 8px 12px 4px;
+  color: var(--amber);
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--green-dim);
+}
+
+.theme-mobile .task-switcher-window,
+.theme-mobile .app-submenu-item {
+  padding: 10px 12px;
+  border-radius: 0;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.theme-mobile .task-switcher-window:hover,
+.theme-mobile .app-submenu-item:hover {
+  background: var(--green-dim);
+  color: #000;
+}
+
+.theme-mobile .task-switcher-window:active,
+.theme-mobile .app-submenu-item:active {
+  background: var(--green);
+  color: #000;
+}
+
+.theme-mobile .task-switcher-window.minimized,
+.theme-mobile .app-submenu-item.minimized {
+  color: var(--green-dim);
+}
+
+.theme-mobile .task-switcher-window.active::before {
+  content: '▶';
+  color: var(--green);
+}
+
+/* Theme picker */
+.theme-mobile #theme-picker {
+  bottom: var(--taskbar-height);
+  top: auto;
+  background: #000;
+  border: 1px solid var(--green);
+  border-radius: 0;
+  padding: 4px;
+  box-shadow: 0 0 20px var(--green-glow);
+}
+
+.theme-mobile .theme-option {
+  padding: 10px 12px;
+  border-radius: 0;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.theme-mobile .theme-option:active,
+.theme-mobile .theme-option:hover {
+  background: var(--green);
+  color: #000;
+}
+
+.theme-mobile .theme-option.active::before {
+  content: '▶ ';
+  color: var(--green);
+}
+
+/* Windows - DOS terminal style border with multiple green lines */
+.theme-mobile .window {
+  background: #000;
+  border: 1px dotted var(--green);
+  border-radius: 0;
+  padding: 5px;
+  padding-top: 0px;
+}
+
+/* No visual difference for inactive windows - fullscreen anyway */
+
+.theme-mobile .window-titlebar {
+  background: transparent;
+  height: var(--titlebar-height);
+  padding: 0 2px;
+  border-bottom: 1px dotted var(--green);
+  /* Reorder: close on left, title center, minimize on right */
+  display: flex;
+  align-items: center;
+}
+
+/* On mobile viewports, windows are fullscreen so disable drag cursor */
+@media (max-width: 768px) {
+  .theme-mobile .window-titlebar {
+    cursor: default;
+  }
+}
+
+.theme-mobile .window-controls {
+  display: contents; /* Let buttons participate in parent flex */
+}
+
+.theme-mobile .btn-close {
+  order: -1; /* Move close to the start (left) */
+  margin-right: auto; /* Push everything else to the right */
+}
+
+.theme-mobile .window-title {
+  order: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.theme-mobile .btn-minimize {
+  order: 1; /* Keep on right */
+}
+
+.theme-mobile .window.inactive .window-titlebar {
+  border-color: var(--green-dim);
+}
+
+.theme-mobile .window-icon {
+  display: none;
+}
+
+.theme-mobile .window-title {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.theme-mobile .window.inactive .window-title {
+  color: var(--green-dim);
+}
+
+.theme-mobile .window-btn {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px dotted var(--green);
+  border-radius: 0;
+  font-size: 14px;
+  color: var(--green);
+}
+
+.theme-mobile .window-btn:active {
+  background: var(--green);
+  color: #000;
+}
+
+.theme-mobile .window-btn:hover {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.theme-mobile .btn-close {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.theme-mobile .btn-close:active {
+  background: var(--red);
+  color: #000;
+}
+
+.theme-mobile .btn-close:hover {
+  background: var(--red-dim);
+  color: var(--red);
+}
+
+.theme-mobile .btn-maximize {
+  margin-right: 7px;
+}
+
+.theme-mobile .btn-maximize::after {
+  border-color: var(--green);
+}
+
+.theme-mobile .btn-minimize::after {
+  content: '−';
+  font-size: 16px;
+}
+
+/* Maximized windows - taskbar at bottom so start at top */
+.theme-mobile .window.maximized {
+  top: 0 !important;
+  height: calc(100% - 52px) !important; /* 52px taskbar */
+}
+
+/* Only hide maximize button on mobile viewports */
+@media (max-width: 768px) {
+  .theme-mobile .btn-maximize {
+    display: none;
+  }
+}
+
+.theme-mobile .btn-close::after {
+  content: '×';
+  font-size: 18px;
+}
+
+.theme-mobile .window-content {
+  background: #000;
+  border: none;
+  margin: 0;
+}
+
+/* Resize handles hidden by base CSS media query on mobile viewports */

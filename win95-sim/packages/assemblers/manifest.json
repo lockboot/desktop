@@ -1,0 +1,17 @@
+{
+  "name": "Assemblers",
+  "version": "1.0",
+  "description": "Z80 and 8080 assemblers for CP/M",
+  "outputDir": "assemblers",
+  "files": [
+    { "src": "lasm3.com" },
+    { "src": "z1.com" },
+    { "src": "z80mr.com" },
+    { "src": "zasm.com" },
+    { "src": "zasm.doc", "required": false }
+  ],
+  "meta": {
+    "type": "development",
+    "languages": ["z80asm", "8080asm", "zasm"]
+  }
+}

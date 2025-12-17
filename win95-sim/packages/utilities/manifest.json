@@ -1,0 +1,15 @@
+{
+  "name": "CP/M Utilities",
+  "version": "1.0",
+  "description": "Build tools and file utilities for CP/M",
+  "outputDir": "utilities",
+  "files": [
+    { "src": "make.com" },
+    { "src": "pmake.com" },
+    { "src": "rm.com" },
+    { "src": "pset.com" }
+  ],
+  "meta": {
+    "type": "utilities"
+  }
+}

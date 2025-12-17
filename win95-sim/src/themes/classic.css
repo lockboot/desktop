@@ -1,0 +1,281 @@
+/* Mac Classic Theme - Platinum, stripes, elegance */
+.theme-classic {
+  --desktop-bg: #666699;
+  --window-bg: #dddddd;
+  --window-content-bg: #ffffff;
+  --titlebar-active: linear-gradient(to bottom, #f0f0f0 0%, #c8c8c8 50%, #b8b8b8 100%);
+  --titlebar-inactive: linear-gradient(to bottom, #e8e8e8 0%, #d0d0d0 100%);
+  --titlebar-text: #000000;
+  --button-face: #dddddd;
+  --button-highlight: #ffffff;
+  --button-shadow: #888888;
+  --button-border: 1px solid #000000;
+  --button-border-pressed: 1px solid #000000;
+  --input-border: 1px solid #000000;
+  --window-border: 1px solid #000000;
+  --border-width: 1px;
+  --titlebar-height: 20px;
+  --taskbar-height: 22px;
+  --font-size: 12px;
+}
+
+.theme-classic #app {
+  font-family: 'Chicago', 'Charcoal', Geneva, sans-serif;
+}
+
+.theme-classic #taskbar {
+  top: 0;
+  bottom: auto;
+  border-top: none;
+  border-bottom: 1px solid #000000;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(to bottom, #ffffff, #dddddd);
+  height: var(--taskbar-height);
+  padding-left: 0;
+}
+
+.theme-classic #start-button {
+  background: transparent;
+  border: none;
+  border-radius: 0 0 0 4px;
+  font-weight: normal;
+  padding: 2px 4px 0px 10px;
+  margin: 0;
+}
+
+.theme-classic #start-button:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.theme-classic #start-button:active,
+.theme-classic #start-button.menu-open {
+  background: #000000;
+  color: #ffffff;
+  border: none;
+}
+
+.theme-classic #start-button .win-logo {
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-classic #start-button .win-logo::before {
+  content: '⌘';
+  display: block;
+  font-size: 14px;
+  position: relative;
+  left: -4px;
+}
+
+.theme-classic #start-button span {
+  display: none;
+}
+
+.theme-classic .task-button {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.theme-classic .task-button:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.theme-classic .task-button.active {
+  background: transparent;
+  border: none;
+  font-weight: bold;
+}
+
+.theme-classic .task-button.active:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.theme-classic #system-tray {
+  background: transparent;
+  border: none;
+}
+
+.theme-classic .window {
+  border-radius: 4px 4px 0 0;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+  overflow: hidden;
+}
+
+.theme-classic .window-titlebar {
+  background: var(--titlebar-active);
+  border-left:  1px solid #ccc;
+  border-radius: 3px 3px 0 0;
+  justify-content: center;
+  position: relative;
+}
+
+.theme-classic .window.inactive .window-titlebar {
+  background: var(--titlebar-inactive);
+}
+
+.theme-classic .window-title {
+  color: #000000;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: none;
+}
+
+.theme-classic .window.inactive .window-title {
+  color: #888888;
+}
+
+.theme-classic .window-icon {
+  display: none;
+}
+
+.theme-classic .window-controls {
+  position: static;
+  display: contents;
+}
+
+.theme-classic .window-btn {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(to bottom, #ffffff 0%, #e0e0e0 100%);
+  border: 1px solid #888888;
+  border-radius: 1px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.1);
+  font-size: 0;
+  padding: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.theme-classic .window-btn:hover {
+  background: linear-gradient(to bottom, #f8f8f8 0%, #d0d0d0 100%);
+  border-color: #666666;
+}
+
+.theme-classic .window-btn:active {
+  background: linear-gradient(to bottom, #c0c0c0 0%, #d8d8d8 100%);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.theme-classic .btn-close {
+  left: 7px;
+  top: 10px;
+}
+
+.theme-classic .btn-minimize {
+  display: none;
+}
+
+.theme-classic .btn-maximize {
+  right: 8px;
+}
+
+.theme-classic .btn-minimize::after,
+.theme-classic .btn-maximize::after,
+.theme-classic .btn-close::after {
+  content: '';
+  border: none;
+  width: auto;
+  height: auto;
+}
+
+.theme-classic .window-content {
+  border: none;
+  border-radius: 0;
+  margin: 0 1px 1px 1px;
+}
+
+.theme-classic .window-content iframe {
+  border: none;
+}
+
+.theme-classic #start-menu {
+  top: var(--taskbar-height);
+  bottom: auto;
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 4px 0 0px 0px;
+  margin-top: -1px;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+}
+
+.theme-classic #start-menu-sidebar {
+  background: #ffffff;
+  padding-left: 5px;
+  border-right: 1px solid #000000;
+}
+
+.theme-classic #start-menu-sidebar span {
+  color: #000000;
+  font-size: 12px;
+}
+
+.theme-classic .menu-item:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.theme-classic .menu-separator {
+  border-top: 1px solid #000000;
+  border-bottom: none;
+  margin: 4px 8px;
+}
+
+.theme-classic #task-switcher {
+  background: transparent;
+  border: none;
+}
+
+.theme-classic #task-area {
+  padding: 0;
+}
+
+.theme-classic #task-switcher:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.theme-classic #task-switcher-menu {
+  top: var(--taskbar-height);
+  bottom: auto;
+  right: 60px;
+  left: auto;
+  background: #ffffff;
+  border: 1px solid #000000;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+}
+
+.theme-classic #app-submenu,
+.theme-classic #theme-picker {
+  top: var(--taskbar-height);
+  bottom: auto;
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 0;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+}
+
+.theme-classic .app-submenu-item:hover,
+.theme-classic .theme-option:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.theme-classic .task-switcher-window:hover,
+.theme-classic .task-switcher-item:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.theme-classic .window.maximized {
+  top: var(--taskbar-height) !important;
+  height: calc(100% - var(--taskbar-height)) !important;
+  border-radius: 0;
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Zork I",
+  "version": "1.0",
+  "description": "Zork I text adventure game for CP/M",
+  "outputDir": "zork",
+  "files": [
+    { "src": "ZORK1.COM" },
+    { "src": "ZORK1.DAT" }
+  ],
+  "meta": {
+    "type": "game"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "CBASIC",
+  "version": "2.0",
+  "description": "CBASIC compiler for CP/M",
+  "outputDir": "cbasic",
+  "files": [
+    { "src": "CBAS2.COM" },
+    { "src": "CRUN2.COM" },
+    { "src": "RUN.COM" }
+  ],
+  "meta": {
+    "language": "cbasic",
+    "type": "compiler"
+  }
+}

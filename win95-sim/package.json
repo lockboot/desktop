@@ -1,0 +1,38 @@
+{
+  "name": "win95-sim",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pkg": "npx tsx scripts/cpm-pkg.ts",
+    "pkg:list": "npx tsx scripts/cpm-pkg.ts list",
+    "pkg:build": "npx tsx scripts/cpm-pkg.ts build",
+    "pkg:clean": "npx tsx scripts/cpm-pkg.ts clean",
+    "pkg:validate": "npx tsx scripts/cpm-pkg.ts validate"
+  },
+  "dependencies": {
+    "commander": "^4.1.0",
+    "jszip": "^3.10.1",
+    "null-writable": "^1.0.5",
+    "z80-base": "^2.0.1",
+    "z80-disasm": "^2.2.3",
+    "z80-emulator": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "^7.0.0",
+    "@types/node": "^22.15.21",
+    "archiver": "^7.0.1",
+    "jsdom": "^27.3.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.3",
+    "unzipper": "^0.12.3",
+    "vite": "^7.2.4",
+    "vite-plugin-singlefile": "^2.3.0",
+    "vitest": "^4.0.15"
+  }
+}
