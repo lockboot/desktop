@@ -2,7 +2,14 @@
 SHELL := /bin/bash
 NVM_INIT := source ~/.nvm/nvm.sh 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 
-.PHONY: dev build test test-watch install clean typecheck
+.PHONY: all dev build test test-watch install clean typecheck packages
+
+# Default target: build packages, run tests, build app
+all: packages test build
+
+# Build CP/M packages to public/cpm/
+packages:
+	@$(NVM_INIT) && npm run pkg:build
 
 # Start development server
 dev:
