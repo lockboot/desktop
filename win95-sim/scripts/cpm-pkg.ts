@@ -28,6 +28,44 @@ import archiver from 'archiver';
 const PACKAGES_DIR = path.join(__dirname, '../packages');
 const OUTPUT_DIR = path.join(__dirname, '../public/cpm');
 
+/**
+ * Convert a filename to valid CP/M 8.3 format.
+ * - Uppercases
+ * - Truncates name to 8 chars, extension to 3 chars
+ * - Removes invalid characters
+ */
+function to83(filename: string): string {
+  const upper = filename.toUpperCase();
+  const lastDot = upper.lastIndexOf('.');
+
+  let name: string;
+  let ext: string;
+
+  if (lastDot === -1) {
+    name = upper;
+    ext = '';
+  } else {
+    name = upper.slice(0, lastDot);
+    ext = upper.slice(lastDot + 1);
+  }
+
+  // Valid characters: A-Z, 0-9, $ # @ ! % ' ` ( ) { } ~ ^ - _
+  const clean = (s: string) => s.replace(/[^A-Z0-9$#@!%'`(){}~^\-_]/g, '');
+
+  name = clean(name).slice(0, 8);
+  ext = clean(ext).slice(0, 3);
+
+  // Name must be at least 1 char
+  if (name.length === 0) name = '_';
+
+  return ext ? `${name}.${ext}` : name;
+}
+
+/** Check if filename is already valid 8.3 */
+function isValid83(filename: string): boolean {
+  return to83(filename) === filename.toUpperCase();
+}
+
 /** Package manifest schema */
 interface PackageManifest {
   name: string;
@@ -52,10 +90,10 @@ interface FileEntry {
   required?: boolean;
 }
 
-/** Get destination filename - defaults to uppercased source basename */
+/** Get destination filename - defaults to 8.3 formatted source basename */
 function getDst(file: FileEntry): string {
-  if (file.dst) return file.dst;
-  return path.basename(file.src).toUpperCase();
+  if (file.dst) return to83(file.dst);
+  return to83(path.basename(file.src));
 }
 
 /** Check if file is required - defaults to true */
@@ -76,6 +114,12 @@ const colors = {
 
 function log(msg: string) {
   console.log(msg);
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}b`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}kb`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}mb`;
 }
 
 function logSuccess(msg: string) {
@@ -102,14 +146,14 @@ function getPackages(): string[] {
   return fs.readdirSync(PACKAGES_DIR)
     .filter(name => {
       const pkgPath = path.join(PACKAGES_DIR, name);
-      const manifestPath = path.join(pkgPath, 'manifest.json');
+      const manifestPath = path.join(pkgPath, 'manifest.mf');
       return fs.statSync(pkgPath).isDirectory() && fs.existsSync(manifestPath);
     });
 }
 
 /** Load a package manifest */
 function loadManifest(pkgName: string): PackageManifest | null {
-  const manifestPath = path.join(PACKAGES_DIR, pkgName, 'manifest.json');
+  const manifestPath = path.join(PACKAGES_DIR, pkgName, 'manifest.mf');
   if (!fs.existsSync(manifestPath)) {
     return null;
   }
@@ -199,8 +243,19 @@ function cmdValidate(): boolean {
       }
     }
 
+    // Check 8.3 filename compliance
+    if (manifest.files) {
+      for (const file of manifest.files) {
+        const dst = file.dst || path.basename(file.src);
+        if (!isValid83(dst)) {
+          const fixed = to83(dst);
+          logWarn(`${pkgName}: "${dst}" → "${fixed}" (8.3 truncation)`);
+        }
+      }
+    }
+
     if (allValid) {
-      logSuccess(`${pkgName}: Valid`);
+      logSuccess(pkgName);
     }
   }
 
@@ -380,14 +435,20 @@ async function buildPackage(pkgName: string): Promise<boolean> {
     }
 
     // Add manifest to the zip
-    const manifestPath = path.join(pkgDir, 'manifest.json');
+    const manifestPath = path.join(pkgDir, 'manifest.mf');
     const manifestContent = fs.readFileSync(manifestPath);
-    files.push({ name: 'manifest.json', content: new Uint8Array(manifestContent) });
+    files.push({ name: 'manifest.mf', content: new Uint8Array(manifestContent) });
+
+    // Calculate uncompressed size
+    const uncompressedSize = files.reduce((sum, f) => sum + f.content.length, 0);
 
     // Create the output zip
     await createZip(zipPath, files);
 
-    logSuccess(`Built ${pkgName} (${files.length} files → ${outputName}.zip)`);
+    // Get compressed size
+    const compressedSize = fs.statSync(zipPath).size;
+
+    logSuccess(`${files.length} files, ${formatSize(uncompressedSize)} → ${formatSize(compressedSize)}`);
     return true;
   } catch (err) {
     logError(`Failed to build ${pkgName}: ${err}`);
@@ -511,12 +572,12 @@ function cmdInit(pkgName: string) {
   };
 
   fs.writeFileSync(
-    path.join(pkgDir, 'manifest.json'),
+    path.join(pkgDir, 'manifest.mf'),
     JSON.stringify(manifest, null, 2)
   );
 
   logSuccess(`Created package: ${pkgName}`);
-  log(`  Edit: packages/${pkgName}/manifest.json`);
+  log(`  Edit: packages/${pkgName}/manifest.mf`);
   log(`  Add files to: packages/${pkgName}/`);
 }
 
@@ -538,7 +599,7 @@ Commands:
 Package Structure:
   packages/
     my-package/
-      manifest.json     Package definition
+      manifest.mf     Package definition
       source.zip        Optional: source archive
       FILE.COM          Or: loose files
 

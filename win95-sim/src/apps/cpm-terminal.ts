@@ -74,7 +74,7 @@ export function registerCpmTerminal(desktop: Desktop): void {
 
     try {
       // Load packages
-      const core = await workspace.loadPackage('core');
+      const xccp = await workspace.loadPackage('xccp');
       const cpm22 = await workspace.loadPackage('cpm22');
 
       // Try to load optional packages (don't fail if not found)
@@ -86,10 +86,10 @@ export function registerCpmTerminal(desktop: Desktop): void {
       }
 
       // Mount drives:
-      // A: = core + cpm22 with writable overlay (for user files)
+      // A: = xccp + cpm22 with writable overlay (for user files)
       // B: = cpm22 system utilities (read-only)
       // J: = zork (if available)
-      const baseDriveA = new PackageDriveFS([core, cpm22]);
+      const baseDriveA = new PackageDriveFS([xccp, cpm22]);
       workspace.mount('A', new OverlayDriveFS(baseDriveA));
       workspace.mount('B', new PackageDriveFS([cpm22]));
 
@@ -102,15 +102,15 @@ export function registerCpmTerminal(desktop: Desktop): void {
       workspace.writeFile('A', 'README.TXT', new TextEncoder().encode('CP/M 2.2 Virtual Machine\r\n'));
 
       // Show drive contents
-      terminal.writeString(` A: Core + System (${workspace.listFiles('A').length} files)\r\n`);
+      terminal.writeString(` A: XCCP + System (${workspace.listFiles('A').length} files)\r\n`);
       terminal.writeString(` B: System utilities (${workspace.listFiles('B').length} files)\r\n`);
       if (zork) {
         terminal.writeString(` J: ??? (${workspace.listFiles('J').length} files)\r\n`);
       }
       terminal.writeString('\r\n');
 
-      // Get shell from core package manifest
-      const shellName = (core.manifest.meta?.shell as string) ?? 'XCCP.COM';
+      // Get shell from xccp package manifest
+      const shellName = (xccp.manifest.meta?.shell as string) ?? 'XCCP.COM';
       const shellBinary = workspace.readFile('A', shellName);
 
       if (shellBinary) {

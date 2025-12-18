@@ -1,4 +1,5 @@
 {
+  "id": "utilities",
   "name": "CP/M Utilities",
   "version": "1.0",
   "description": "Build tools and file utilities for CP/M",

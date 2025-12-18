@@ -12,7 +12,7 @@
  */
 
 import type { VirtualFS, CpmConsole, CpmOptions, CpmExitInfo } from './types';
-import type { DriveFS, LoadedPackage } from './package-loader';
+import type { DriveFS, LoadedPackage, PackageAction } from './package-loader';
 import { CpmEmulator } from './emulator';
 import {
   DriveManager,
@@ -20,28 +20,24 @@ import {
   PackageDriveFS,
   OverlayDriveFS,
   loadPackageFromUrl,
+  actionMatchesFile,
   JSZip,
 } from './package-loader';
 
 /**
- * Drive type determines how the drive handles reads and writes.
- *
- * - 'ro': Read-only packages, no writes allowed
- * - 'r+': Packages with writable overlay (writes to overlay, reads from overlay then packages)
- * - 'rw': Pure writable filesystem (empty initially)
- */
-export type DriveType = 'ro' | 'r+' | 'rw';
-
-/**
  * Configuration for a single drive.
+ *
+ * Drives can have:
+ * - Zero or more package layers (read-only)
+ * - An optional writable [files] layer for user files
  */
 export interface DriveConfig {
   /** Drive letter (A-P) */
   letter: string;
-  /** Drive type: 'ro' (read-only), 'r+' (read-only + overlay), 'rw' (writable) */
-  type: DriveType;
-  /** Package names loaded on this drive (for ro and r+ types) */
+  /** Package names loaded on this drive */
   packages: string[];
+  /** Whether the drive has a writable [files] layer */
+  writable: boolean;
 }
 
 /**
@@ -85,6 +81,15 @@ export interface Workspace {
 
   /** Get a VirtualFS view of this workspace (for emulator compatibility) */
   getVirtualFS(): VirtualFS;
+
+  /** Find a shell from mounted packages */
+  findShell(): ShellInfo | null;
+
+  /** Get all actions applicable to a file based on its extension */
+  getActionsForFile(filename: string): PackageAction[];
+
+  /** Get all actions from all mounted packages */
+  getAllActions(): PackageAction[];
 }
 
 /**
@@ -99,6 +104,22 @@ export interface WorkspaceEmulatorOptions {
   onExit?: (info: CpmExitInfo) => void;
   /** Logging function */
   log?: (msg: string) => void;
+}
+
+/**
+ * Shell info returned by findShell.
+ */
+export interface ShellInfo {
+  /** Shell binary data */
+  binary: Uint8Array;
+  /** Shell filename (e.g., "XCCP.COM" or "CCP.COM") */
+  filename: string;
+  /** Drive letter where shell was found */
+  drive: string;
+  /** Load address (default: 0x100 for TPA, or custom like 0xDC00) */
+  loadAddress: number;
+  /** Package name that provided the shell */
+  packageName: string;
 }
 
 /**
@@ -137,7 +158,7 @@ export async function fetchAvailablePackages(baseUrl = './cpm'): Promise<Package
  */
 export class WorkspaceFS implements VirtualFS {
   private driveManager: DriveManager;
-  private handles = new Map<number, { drive: DriveFS; name: string; content: Uint8Array; position: number; mode: string }>();
+  private handles = new Map<number, { drive: DriveFS; name: string; content: Uint8Array; position: number; mode: string; dirty: boolean }>();
   private nextHandle = 1;
 
   constructor(driveManager: DriveManager) {
@@ -157,6 +178,7 @@ export class WorkspaceFS implements VirtualFS {
     const driveFs = this.driveManager.drive(driveLetter);
     if (!driveFs) {
       console.warn(`[WorkspaceFS] Drive ${driveLetter}: not mounted`);
+      console.log(`[WorkspaceFS] Available drives: ${this.driveManager.listDrives().map(d => d.letter).join(', ')}`);
       return null;
     }
     return { drive: driveFs, name: fileName };
@@ -172,17 +194,24 @@ export class WorkspaceFS implements VirtualFS {
       const content = drive.readFile(name);
       if (!content) return -1;
       const handle = this.nextHandle++;
-      this.handles.set(handle, { drive, name, content: new Uint8Array(content), position: 0, mode });
+      // dirty=false for read modes - only set dirty when actually written
+      this.handles.set(handle, { drive, name, content: new Uint8Array(content), position: 0, mode, dirty: false });
       return handle;
     }
 
     if (mode === 'w' || mode === 'wx+') {
       // wx+ = create exclusive (fail if exists)
       if (mode === 'wx+' && drive.exists(name)) {
+        console.log(`[WorkspaceFS] open ${path} wx+ failed: file exists`);
         return -1;
       }
+      // Write empty file to drive immediately so it's visible to other operations
+      // This matches CP/M semantics where MAKE creates the directory entry
+      drive.writeFile(name, new Uint8Array(0));
       const handle = this.nextHandle++;
-      this.handles.set(handle, { drive, name, content: new Uint8Array(0), position: 0, mode });
+      // dirty=true for write modes - these files need to be saved
+      this.handles.set(handle, { drive, name, content: new Uint8Array(0), position: 0, mode, dirty: true });
+      console.log(`[WorkspaceFS] open ${path} wx+ success: handle=${handle}`);
       return handle;
     }
 
@@ -191,11 +220,23 @@ export class WorkspaceFS implements VirtualFS {
 
   close(handle: number): void {
     const h = this.handles.get(handle);
-    if (h && (h.mode === 'w' || h.mode === 'wx+' || h.mode === 'r+')) {
-      // Write back content on close
+    if (h && h.dirty) {
+      // Only write back if actually modified
+      console.log(`[WorkspaceFS] close: Writing ${h.content.length} bytes to ${h.name}`);
       h.drive.writeFile(h.name, h.content);
     }
     this.handles.delete(handle);
+  }
+
+  closeAll(): void {
+    for (const [handle, h] of this.handles) {
+      if (h.dirty) {
+        // Only write back if actually modified
+        console.log(`[WorkspaceFS] closeAll: Writing ${h.content.length} bytes to ${h.name} (handle ${handle})`);
+        h.drive.writeFile(h.name, h.content);
+      }
+    }
+    this.handles.clear();
   }
 
   read(handle: number, buffer: Uint8Array, offset: number, length: number, position: number): number {
@@ -213,6 +254,9 @@ export class WorkspaceFS implements VirtualFS {
   write(handle: number, buffer: Uint8Array, offset: number, length: number, position: number): number {
     const h = this.handles.get(handle);
     if (!h) return 0;
+
+    // Mark as dirty since we're modifying the file
+    h.dirty = true;
 
     // Expand content if needed
     const endPosition = position + length;
@@ -304,6 +348,213 @@ export class WorkspaceFS implements VirtualFS {
         for (const name of driveFs.listFiles()) {
           files.push(`/${letter}/${name}`);
         }
+      }
+    }
+    return files;
+  }
+}
+
+/**
+ * VirtualFS wrapper that adds extra drives on top of a base VirtualFS.
+ * Used for temporary tool drives in terminal sessions.
+ */
+export class MergedWorkspaceFS implements VirtualFS {
+  private base: VirtualFS;
+  private extraDrives = new Map<string, DriveFS>();
+  private handles = new Map<number, { drive: DriveFS; name: string; content: Uint8Array; position: number; mode: string; dirty: boolean }>();
+  private nextHandle = 1;
+
+  constructor(base: VirtualFS) {
+    this.base = base;
+  }
+
+  /** Add an extra drive (only visible to this merged FS) */
+  addDrive(letter: string, fs: DriveFS): void {
+    this.extraDrives.set(letter.toUpperCase(), fs);
+  }
+
+  /** Get extra drive letters */
+  getExtraDrives(): string[] {
+    return Array.from(this.extraDrives.keys());
+  }
+
+  /** Parse path - check extra drives first, then delegate to base */
+  private parseExtraPath(path: string): { drive: DriveFS; name: string; letter: string } | null {
+    const match = path.match(/^\/([A-P])\/(.+)$/i);
+    if (!match) return null;
+    const letter = match[1].toUpperCase();
+    const name = match[2].toUpperCase();
+    const extraDrive = this.extraDrives.get(letter);
+    if (extraDrive) {
+      return { drive: extraDrive, name, letter };
+    }
+    return null;
+  }
+
+  open(path: string, mode: 'r' | 'r+' | 'w' | 'wx+'): number {
+    const extra = this.parseExtraPath(path);
+    if (extra) {
+      const { drive, name } = extra;
+      if (mode === 'r' || mode === 'r+') {
+        const content = drive.readFile(name);
+        if (!content) return -1;
+        const handle = this.nextHandle++;
+        // dirty=false for read modes - only set dirty when actually written
+        this.handles.set(handle, { drive, name, content: new Uint8Array(content), position: 0, mode, dirty: false });
+        return handle;
+      }
+      if (mode === 'w' || mode === 'wx+') {
+        if (mode === 'wx+' && drive.exists(name)) {
+          console.log(`[MergedFS] open ${path} wx+ failed: file exists on extra drive`);
+          return -1;
+        }
+        // Write empty file to drive immediately so it's visible to other operations
+        drive.writeFile(name, new Uint8Array(0));
+        const handle = this.nextHandle++;
+        // dirty=true for write modes - these files need to be saved
+        this.handles.set(handle, { drive, name, content: new Uint8Array(0), position: 0, mode, dirty: true });
+        console.log(`[MergedFS] open ${path} wx+ success on extra drive: handle=${handle}`);
+        return handle;
+      }
+      return -1;
+    }
+    console.log(`[MergedFS] open ${path} mode=${mode} -> delegating to base`);
+    return this.base.open(path, mode);
+  }
+
+  close(handle: number): void {
+    const h = this.handles.get(handle);
+    if (h) {
+      if (h.dirty) {
+        // Only write back if actually modified
+        h.drive.writeFile(h.name, h.content);
+      }
+      this.handles.delete(handle);
+      return;
+    }
+    this.base.close(handle);
+  }
+
+  closeAll(): void {
+    // Close our extra handles
+    for (const [, h] of this.handles) {
+      if (h.dirty) {
+        // Only write back if actually modified
+        h.drive.writeFile(h.name, h.content);
+      }
+    }
+    this.handles.clear();
+    // Delegate to base
+    this.base.closeAll();
+  }
+
+  read(handle: number, buffer: Uint8Array, offset: number, length: number, position: number): number {
+    const h = this.handles.get(handle);
+    if (h) {
+      const available = h.content.length - position;
+      if (available <= 0) return 0;
+      const toRead = Math.min(length, available);
+      buffer.set(h.content.subarray(position, position + toRead), offset);
+      return toRead;
+    }
+    return this.base.read(handle, buffer, offset, length, position);
+  }
+
+  write(handle: number, buffer: Uint8Array, offset: number, length: number, position: number): number {
+    const h = this.handles.get(handle);
+    if (h) {
+      // Mark as dirty since we're modifying the file
+      h.dirty = true;
+
+      const endPosition = position + length;
+      if (endPosition > h.content.length) {
+        const newContent = new Uint8Array(endPosition);
+        newContent.set(h.content);
+        h.content = newContent;
+      }
+      h.content.set(buffer.subarray(offset, offset + length), position);
+      return length;
+    }
+    return this.base.write(handle, buffer, offset, length, position);
+  }
+
+  stat(path: string): { size: number } | null {
+    const extra = this.parseExtraPath(path);
+    if (extra) {
+      const content = extra.drive.readFile(extra.name);
+      if (!content) return null;
+      return { size: content.length };
+    }
+    return this.base.stat(path);
+  }
+
+  unlink(path: string): boolean {
+    const extra = this.parseExtraPath(path);
+    if (extra) {
+      return extra.drive.deleteFile(extra.name);
+    }
+    return this.base.unlink(path);
+  }
+
+  rename(oldPath: string, newPath: string): boolean {
+    const extraOld = this.parseExtraPath(oldPath);
+    const extraNew = this.parseExtraPath(newPath);
+    // If both are extra drives on same drive, handle it
+    if (extraOld && extraNew && extraOld.letter === extraNew.letter) {
+      const content = extraOld.drive.readFile(extraOld.name);
+      if (!content) return false;
+      extraOld.drive.deleteFile(extraOld.name);
+      extraNew.drive.writeFile(extraNew.name, content);
+      return true;
+    }
+    // Otherwise delegate to base (won't handle cross-extra-drive renames)
+    return this.base.rename(oldPath, newPath);
+  }
+
+  readdir(path: string): string[] {
+    const match = path.match(/^\/([A-P])\/?$/i);
+    if (match) {
+      const letter = match[1].toUpperCase();
+      const extraDrive = this.extraDrives.get(letter);
+      if (extraDrive) {
+        return extraDrive.listFiles();
+      }
+    }
+    return this.base.readdir(path);
+  }
+
+  exists(path: string): boolean {
+    const extra = this.parseExtraPath(path);
+    if (extra) {
+      return extra.drive.exists(extra.name);
+    }
+    return this.base.exists(path);
+  }
+
+  addFile(path: string, content: Uint8Array | string): void {
+    const extra = this.parseExtraPath(path);
+    if (extra) {
+      const data = typeof content === 'string' ? new TextEncoder().encode(content) : content;
+      extra.drive.writeFile(extra.name, data);
+      return;
+    }
+    this.base.addFile(path, content);
+  }
+
+  getFile(path: string): Uint8Array | undefined {
+    const extra = this.parseExtraPath(path);
+    if (extra) {
+      return extra.drive.readFile(extra.name);
+    }
+    return this.base.getFile(path);
+  }
+
+  listAll(): string[] {
+    const files = this.base.listAll();
+    // Add files from extra drives
+    for (const [letter, drive] of this.extraDrives) {
+      for (const name of drive.listFiles()) {
+        files.push(`/${letter}/${name}`);
       }
     }
     return files;
@@ -413,6 +664,151 @@ export class CpmWorkspace implements Workspace {
     return this.virtualFS;
   }
 
+  /**
+   * Find a shell from mounted packages.
+   * Scans all drives for packages with shell metadata and returns the first one found.
+   *
+   * Shell metadata in manifest.mf can be:
+   * - meta.shell: "FILENAME.COM" (shell filename)
+   * - meta.type: "shell" (marks package as containing a shell)
+   * - File entry with type: "shell" and optional loadAddress
+   */
+  findShell(): ShellInfo | null {
+    const TPA_ADDRESS = 0x100;
+
+    // Iterate through all configured drives
+    for (const config of this.listDriveConfigs()) {
+      const driveFs = this.drive(config.letter);
+      if (!driveFs) continue;
+
+      // Get packages from the drive (works for PackageDriveFS and OverlayDriveFS)
+      let packages: LoadedPackage[] = [];
+      if (driveFs instanceof PackageDriveFS) {
+        packages = driveFs.getPackages();
+      } else if (driveFs instanceof OverlayDriveFS) {
+        const base = driveFs.getBase();
+        if (base instanceof PackageDriveFS) {
+          packages = base.getPackages();
+        }
+      }
+
+      // Check each package for shell info
+      for (const pkg of packages) {
+        const meta = pkg.manifest.meta;
+
+        let shellFilename: string | undefined;
+        let loadAddress = TPA_ADDRESS;
+
+        // Method 1: meta.shell specifies the shell filename directly
+        if (meta?.shell && typeof meta.shell === 'string') {
+          shellFilename = meta.shell.toUpperCase();
+        }
+
+        // Method 2: Scan file entries for type: "shell"
+        // This works regardless of package-level meta.type
+        if (!shellFilename && pkg.manifest.files) {
+          for (const fileEntry of pkg.manifest.files) {
+            const fileMeta = fileEntry as { type?: string; loadAddress?: string | number; src: string };
+            if (fileMeta.type === 'shell') {
+              shellFilename = fileEntry.src.toUpperCase();
+              // Check for loadAddress on file entry
+              if (fileMeta.loadAddress) {
+                const addr = fileMeta.loadAddress;
+                loadAddress = typeof addr === 'string' ? parseInt(addr, 16) : addr;
+              }
+              break;
+            }
+          }
+        }
+
+        // Method 3: meta.type === 'shell' marks entire package as shell
+        // Find first .COM file as the shell
+        if (!shellFilename && meta?.type === 'shell' && pkg.manifest.files) {
+          for (const fileEntry of pkg.manifest.files) {
+            const src = fileEntry.src.toUpperCase();
+            if (src.endsWith('.COM')) {
+              shellFilename = src;
+              const fileMeta = fileEntry as { type?: string; loadAddress?: string | number; src: string };
+              if (fileMeta.loadAddress) {
+                const addr = fileMeta.loadAddress;
+                loadAddress = typeof addr === 'string' ? parseInt(addr, 16) : addr;
+              }
+              break;
+            }
+          }
+        }
+
+        // If we found a shell filename, try to load it
+        if (shellFilename) {
+          const binary = pkg.files.get(shellFilename);
+          if (binary) {
+            console.log(`[Workspace] Found shell: ${shellFilename} from ${pkg.manifest.name} on ${config.letter}: (load at 0x${loadAddress.toString(16)})`);
+            return {
+              binary,
+              filename: shellFilename,
+              drive: config.letter,
+              loadAddress,
+              packageName: pkg.manifest.name
+            };
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get all actions applicable to a file based on its extension.
+   * Matches against patterns from all mounted packages.
+   *
+   * @param filename - Filename to match (e.g., "TEST.ASM")
+   * @returns Array of matching actions
+   */
+  getActionsForFile(filename: string): PackageAction[] {
+    const allActions = this.getAllActions();
+    return allActions.filter(action => actionMatchesFile(action, filename));
+  }
+
+  /**
+   * Get all actions from all mounted packages.
+   *
+   * @returns Array of all actions
+   */
+  getAllActions(): PackageAction[] {
+    const actions: PackageAction[] = [];
+
+    // Iterate through all configured drives
+    for (const config of this.listDriveConfigs()) {
+      const driveFs = this.drive(config.letter);
+      if (!driveFs) continue;
+
+      // Get PackageDriveFS (either directly or through overlay)
+      let packageFs: PackageDriveFS | null = null;
+      if (driveFs instanceof PackageDriveFS) {
+        packageFs = driveFs;
+      } else if (driveFs instanceof OverlayDriveFS) {
+        const base = driveFs.getBase();
+        if (base instanceof PackageDriveFS) {
+          packageFs = base;
+        }
+      }
+
+      if (packageFs) {
+        // Get actions from the PackageDriveFS
+        for (const action of packageFs.getActions()) {
+          // Avoid duplicates (same action from same package)
+          const existing = actions.find(a => a.id === action.id && a.package === action.package);
+          if (!existing) {
+            actions.push(action);
+          }
+        }
+      }
+    }
+
+    return actions;
+  }
+
   /** Create a writable drive from packages */
   createPackageDrive(packages: LoadedPackage[], writable = true): DriveFS {
     return this.driveManager.createPackageDrive(packages, writable);
@@ -446,41 +842,16 @@ export class CpmWorkspace implements Workspace {
       this.unmount(letter);
     }
 
-    let fs: DriveFS;
-
-    switch (config.type) {
-      case 'rw': {
-        // Pure writable filesystem
-        fs = new MemoryDriveFS();
-        break;
-      }
-
-      case 'ro': {
-        // Read-only package filesystem
-        const packages: LoadedPackage[] = [];
-        for (const pkgName of config.packages) {
-          const pkg = await this.loadPackage(pkgName);
-          packages.push(pkg);
-        }
-        fs = new PackageDriveFS(packages);
-        break;
-      }
-
-      case 'r+': {
-        // Package filesystem with writable overlay
-        const packages: LoadedPackage[] = [];
-        for (const pkgName of config.packages) {
-          const pkg = await this.loadPackage(pkgName);
-          packages.push(pkg);
-        }
-        const base = new PackageDriveFS(packages);
-        fs = new OverlayDriveFS(base);
-        break;
-      }
-
-      default:
-        throw new Error(`Unknown drive type: ${config.type}`);
+    // Load packages
+    const packages: LoadedPackage[] = [];
+    for (const pkgName of config.packages) {
+      const pkg = await this.loadPackage(pkgName);
+      packages.push(pkg);
     }
+
+    // Create filesystem: PackageDriveFS base with optional OverlayDriveFS
+    const base = new PackageDriveFS(packages);
+    const fs: DriveFS = config.writable ? new OverlayDriveFS(base) : base;
 
     // Store config and mount
     this.driveConfigs.set(letter, { ...config, letter });
@@ -509,7 +880,7 @@ export class CpmWorkspace implements Workspace {
   }
 
   /**
-   * Add a package to an existing r+ drive.
+   * Add a package to an existing drive.
    * The package files will be added to the base PackageDriveFS.
    *
    * @param letter - Drive letter
@@ -523,16 +894,18 @@ export class CpmWorkspace implements Workspace {
       throw new Error(`Drive ${upper}: not configured`);
     }
 
-    if (config.type !== 'r+') {
-      throw new Error(`Cannot add packages to ${config.type} drive. Only r+ drives support package addition.`);
-    }
-
     // Load the package
     const pkg = await this.loadPackage(packageName);
 
-    // Get the overlay filesystem and its base
-    const overlayFs = this.drive(upper) as OverlayDriveFS;
-    const baseFs = overlayFs.getBase() as PackageDriveFS;
+    // Get the base PackageDriveFS
+    const driveFs = this.drive(upper);
+    let baseFs: PackageDriveFS;
+
+    if (config.writable) {
+      baseFs = (driveFs as OverlayDriveFS).getBase() as PackageDriveFS;
+    } else {
+      baseFs = driveFs as PackageDriveFS;
+    }
 
     // Add package to base
     baseFs.addPackage(pkg);
@@ -544,7 +917,7 @@ export class CpmWorkspace implements Workspace {
   }
 
   /**
-   * Remove a package from an r+ drive.
+   * Remove a package from a drive.
    *
    * @param letter - Drive letter
    * @param packageName - Package name to remove
@@ -553,12 +926,19 @@ export class CpmWorkspace implements Workspace {
     const upper = letter.toUpperCase();
     const config = this.driveConfigs.get(upper);
 
-    if (!config || config.type !== 'r+') {
+    if (!config) {
       return false;
     }
 
-    const overlayFs = this.drive(upper) as OverlayDriveFS;
-    const baseFs = overlayFs.getBase() as PackageDriveFS;
+    // Get the base PackageDriveFS
+    const driveFs = this.drive(upper);
+    let baseFs: PackageDriveFS;
+
+    if (config.writable) {
+      baseFs = (driveFs as OverlayDriveFS).getBase() as PackageDriveFS;
+    } else {
+      baseFs = driveFs as PackageDriveFS;
+    }
 
     if (baseFs.removePackage(packageName)) {
       const idx = config.packages.indexOf(packageName);
@@ -582,32 +962,36 @@ export class CpmWorkspace implements Workspace {
 
     const layers: { name: string; files: string[]; removable: boolean }[] = [];
 
-    if (config.type === 'r+') {
-      const overlayFs = driveFs as OverlayDriveFS;
-      const baseFs = overlayFs.getBase() as PackageDriveFS;
+    // Get base PackageDriveFS
+    let baseFs: PackageDriveFS | null = null;
+    if (driveFs instanceof PackageDriveFS) {
+      baseFs = driveFs;
+    } else if (driveFs instanceof OverlayDriveFS) {
+      const base = driveFs.getBase();
+      if (base instanceof PackageDriveFS) {
+        baseFs = base;
+      }
+    }
 
-      // Package layers
+    // Add virtual MANIFEST.MF at drive level if packages exist
+    if (baseFs && baseFs.getPackages().length > 0) {
+      layers.push({ name: '[manifest]', files: ['MANIFEST.MF'], removable: false });
+    }
+
+    // Package layers (removable)
+    if (baseFs) {
       const filesByPkg = baseFs.getFilesByPackage();
       for (const [pkgName, files] of filesByPkg) {
         layers.push({ name: pkgName, files: files.sort(), removable: true });
       }
+    }
 
-      // Overlay layer
+    // [files] layer for writable drives
+    if (config.writable) {
+      const overlayFs = driveFs as OverlayDriveFS;
       const overlayFiles = Array.from(overlayFs.getModifiedFiles().keys()).sort();
       if (overlayFiles.length > 0) {
-        layers.push({ name: '[overlay]', files: overlayFiles, removable: false });
-      }
-    } else if (config.type === 'ro') {
-      const pkgFs = driveFs as PackageDriveFS;
-      const filesByPkg = pkgFs.getFilesByPackage();
-      for (const [pkgName, files] of filesByPkg) {
-        layers.push({ name: pkgName, files: files.sort(), removable: false });
-      }
-    } else {
-      // rw drive - just list files as single layer
-      const files = driveFs.listFiles().sort();
-      if (files.length > 0) {
-        layers.push({ name: '[files]', files, removable: false });
+        layers.push({ name: '[files]', files: overlayFiles, removable: false });
       }
     }
 
@@ -615,7 +999,7 @@ export class CpmWorkspace implements Workspace {
   }
 
   /**
-   * Export only the overlay (user-modified files) from an r+ drive.
+   * Export only the user files from a writable drive.
    */
   async exportOverlay(letter: string): Promise<Blob> {
     const upper = letter.toUpperCase();
@@ -626,39 +1010,31 @@ export class CpmWorkspace implements Workspace {
       throw new Error(`Drive ${upper}: not mounted`);
     }
 
-    let filesToExport: Map<string, Uint8Array>;
-
-    if (config.type === 'r+') {
-      filesToExport = (driveFs as OverlayDriveFS).getModifiedFiles();
-    } else if (config.type === 'rw') {
-      filesToExport = new Map();
-      for (const name of driveFs.listFiles()) {
-        const content = driveFs.readFile(name);
-        if (content) filesToExport.set(name, content);
-      }
-    } else {
-      throw new Error(`Drive ${upper}: is read-only, no overlay to export`);
+    if (!config.writable) {
+      throw new Error(`Drive ${upper}: is read-only, no files to export`);
     }
 
+    const filesToExport = (driveFs as OverlayDriveFS).getModifiedFiles();
+
     if (filesToExport.size === 0) {
-      throw new Error(`Drive ${upper}: has no modified files to export`);
+      throw new Error(`Drive ${upper}: has no user files to export`);
     }
 
     const zip = new JSZip();
 
     const manifest = {
-      name: `${upper}: Overlay Export`,
+      name: `${upper}: Files Export`,
       version: '1.0',
-      description: 'User-modified files only',
+      description: 'User files only',
       files: Array.from(filesToExport.keys()).map(name => ({ src: name })),
       meta: {
         exportedFrom: upper,
-        exportType: 'overlay',
+        exportType: 'files',
         exportDate: new Date().toISOString(),
         fileCount: filesToExport.size
       }
     };
-    zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+    zip.file('manifest.mf', JSON.stringify(manifest, null, 2));
 
     for (const [name, data] of filesToExport) {
       zip.file(name, data);
@@ -670,8 +1046,8 @@ export class CpmWorkspace implements Workspace {
   /**
    * Export drive contents as a ZIP file.
    *
-   * Exports ALL files on the drive (including package files for r+ drives),
-   * plus drive configuration metadata.
+   * Exports ALL files on the drive (including package files),
+   * plus the original package manifests (as array if multiple).
    *
    * @param letter - Drive letter
    * @returns ZIP file as Blob
@@ -685,9 +1061,10 @@ export class CpmWorkspace implements Workspace {
       throw new Error(`Drive ${upper}: not mounted`);
     }
 
-    // Get ALL files on the drive
+    // Get ALL files on the drive (excluding virtual MANIFEST.MF)
     const filesToExport = new Map<string, Uint8Array>();
     for (const name of driveFs.listFiles()) {
+      if (name === 'MANIFEST.MF') continue; // Skip virtual manifest
       const content = driveFs.readFile(name);
       if (content) {
         filesToExport.set(name, content);
@@ -697,21 +1074,39 @@ export class CpmWorkspace implements Workspace {
     // Create ZIP
     const zip = new JSZip();
 
-    // Add manifest with full drive config
-    const manifest = {
-      name: `${upper}: Drive Export`,
-      version: '1.0',
-      description: `Exported from workspace`,
-      files: Array.from(filesToExport.keys()).map(name => ({ src: name })),
-      meta: {
-        exportedFrom: upper,
-        driveType: config.type,
-        packages: config.packages,
-        exportDate: new Date().toISOString(),
-        fileCount: filesToExport.size
+    // Get original package manifests
+    let baseFs: PackageDriveFS | null = null;
+    if (driveFs instanceof PackageDriveFS) {
+      baseFs = driveFs;
+    } else if (driveFs instanceof OverlayDriveFS) {
+      const base = driveFs.getBase();
+      if (base instanceof PackageDriveFS) {
+        baseFs = base;
       }
-    };
-    zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+    }
+
+    // Build manifest - preserve original package manifests
+    let manifestContent: string;
+    if (baseFs && baseFs.getPackages().length > 0) {
+      const manifests = baseFs.getPackages().map(p => p.manifest);
+      // Single package: export as object, multiple: export as array
+      manifestContent = manifests.length === 1
+        ? JSON.stringify(manifests[0], null, 2)
+        : JSON.stringify(manifests, null, 2);
+    } else {
+      // No packages - create a basic manifest for the files
+      const manifest = {
+        name: `${upper}: Export`,
+        version: '1.0',
+        files: Array.from(filesToExport.keys()).map(name => ({ src: name })),
+        meta: {
+          exportedFrom: upper,
+          exportDate: new Date().toISOString()
+        }
+      };
+      manifestContent = JSON.stringify(manifest, null, 2);
+    }
+    zip.file('manifest.mf', manifestContent);
 
     // Add files
     for (const [name, data] of filesToExport) {
@@ -729,7 +1124,7 @@ export class CpmWorkspace implements Workspace {
   }
 
   /**
-   * Get writable files from a drive.
+   * Get writable files from a drive (user files in the [files] layer).
    *
    * @param letter - Drive letter
    * @returns Map of filename to content for writable files
@@ -739,27 +1134,11 @@ export class CpmWorkspace implements Workspace {
     const config = this.driveConfigs.get(upper);
     const driveFs = this.drive(upper);
 
-    if (!config || !driveFs) {
+    if (!config || !driveFs || !config.writable) {
       return new Map();
     }
 
-    if (config.type === 'ro') {
-      return new Map();
-    }
-
-    if (config.type === 'r+') {
-      return (driveFs as OverlayDriveFS).getModifiedFiles();
-    }
-
-    // rw drive
-    const files = new Map<string, Uint8Array>();
-    for (const name of driveFs.listFiles()) {
-      const content = driveFs.readFile(name);
-      if (content) {
-        files.set(name, content);
-      }
-    }
-    return files;
+    return (driveFs as OverlayDriveFS).getModifiedFiles();
   }
 
   /**
@@ -773,23 +1152,47 @@ export class CpmWorkspace implements Workspace {
   }
 
   /**
-   * Check if a drive is writable (r+ or rw type).
+   * Check if a drive is writable (has a [files] layer).
    *
    * @param letter - Drive letter
    * @returns true if drive supports writes
    */
   isDriveWritable(letter: string): boolean {
     const config = this.driveConfigs.get(letter.toUpperCase());
-    return config?.type === 'r+' || config?.type === 'rw';
+    return config?.writable ?? false;
+  }
+
+  /**
+   * Enable the writable [files] layer on a drive.
+   * Remounts the drive with an OverlayDriveFS wrapper.
+   *
+   * @param letter - Drive letter
+   */
+  async enableWritableLayer(letter: string): Promise<void> {
+    const upper = letter.toUpperCase();
+    const config = this.driveConfigs.get(upper);
+
+    if (!config) {
+      throw new Error(`Drive ${upper}: not configured`);
+    }
+
+    if (config.writable) {
+      return; // Already writable
+    }
+
+    // Remount with writable layer
+    config.writable = true;
+    await this.configureDrive(config);
   }
 }
 
 // Re-export for convenience
-export type { DriveFS, LoadedPackage };
+export type { DriveFS, LoadedPackage, PackageAction };
 export {
   DriveManager,
   MemoryDriveFS,
   PackageDriveFS,
   OverlayDriveFS,
   loadPackageFromUrl,
+  actionMatchesFile,
 };

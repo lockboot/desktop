@@ -27,16 +27,16 @@ function loadPackageZip(name: string): Uint8Array | null {
 
 describe('Package Loading', () => {
   it('should load a package from zip data', async () => {
-    const zipData = loadPackageZip('core');
+    const zipData = loadPackageZip('xccp');
     if (!zipData) {
-      console.log('core.zip not found, skipping');
+      console.log('xccp.zip not found, skipping');
       return;
     }
 
     const pkg = await loadPackage(zipData);
 
     expect(pkg.manifest).toBeDefined();
-    expect(pkg.manifest.name).toBe('CP/M Core Utilities');
+    expect(pkg.manifest.name).toBe('XCCP Shell & Utilities');
     expect(pkg.files.size).toBeGreaterThan(0);
 
     // Check for expected files
@@ -87,9 +87,9 @@ describe('MemoryDriveFS', () => {
 
 describe('PackageDriveFS', () => {
   it('should provide read-only access to package files', async () => {
-    const zipData = loadPackageZip('core');
+    const zipData = loadPackageZip('xccp');
     if (!zipData) {
-      console.log('core.zip not found, skipping');
+      console.log('xccp.zip not found, skipping');
       return;
     }
 
@@ -102,21 +102,21 @@ describe('PackageDriveFS', () => {
   });
 
   it('should merge multiple packages', async () => {
-    const coreZip = loadPackageZip('core');
+    const xccpZip = loadPackageZip('xccp');
     const asmZip = loadPackageZip('assemblers');
 
-    if (!coreZip || !asmZip) {
+    if (!xccpZip || !asmZip) {
       console.log('Packages not found, skipping');
       return;
     }
 
-    const core = await loadPackage(coreZip);
+    const xccp = await loadPackage(xccpZip);
     const asm = await loadPackage(asmZip);
 
-    const fs = new PackageDriveFS([core, asm]);
+    const fs = new PackageDriveFS([xccp, asm]);
 
     // Should have files from both packages
-    expect(fs.exists('DIR.COM')).toBe(true);      // From core
+    expect(fs.exists('DIR.COM')).toBe(true);      // From xccp
     expect(fs.exists('LASM3.COM')).toBe(true);    // From assemblers
     expect(fs.exists('Z80MR.COM')).toBe(true);    // From assemblers
 
@@ -126,9 +126,9 @@ describe('PackageDriveFS', () => {
 
 describe('OverlayDriveFS', () => {
   it('should allow writes on top of read-only packages', async () => {
-    const zipData = loadPackageZip('core');
+    const zipData = loadPackageZip('xccp');
     if (!zipData) {
-      console.log('core.zip not found, skipping');
+      console.log('xccp.zip not found, skipping');
       return;
     }
 
@@ -169,11 +169,11 @@ describe('DriveManager', () => {
     manager.setDrive(0, manager.createMemoryDrive());
 
     // Create package drive for B:
-    const coreZip = loadPackageZip('core');
-    if (coreZip) {
-      const core = await loadPackage(coreZip);
-      manager.cachePackage('core', core);
-      manager.setDrive(1, manager.createPackageDrive([core]));
+    const xccpZip = loadPackageZip('xccp');
+    if (xccpZip) {
+      const xccp = await loadPackage(xccpZip);
+      manager.cachePackage('xccp', xccp);
+      manager.setDrive(1, manager.createPackageDrive([xccp]));
     }
 
     // Test drive access
@@ -184,7 +184,7 @@ describe('DriveManager', () => {
     driveA!.writeFile('TEST.COM', new Uint8Array([0xC9]));
     expect(driveA!.exists('TEST.COM')).toBe(true);
 
-    if (coreZip) {
+    if (xccpZip) {
       expect(driveB).toBeDefined();
       expect(driveB!.exists('DIR.COM')).toBe(true);
     }
@@ -199,17 +199,17 @@ describe('DriveManager', () => {
   it('should support package caching', async () => {
     const manager = new DriveManager();
 
-    const coreZip = loadPackageZip('core');
-    if (!coreZip) {
-      console.log('core.zip not found, skipping');
+    const xccpZip = loadPackageZip('xccp');
+    if (!xccpZip) {
+      console.log('xccp.zip not found, skipping');
       return;
     }
 
-    const pkg = await loadPackage(coreZip);
-    manager.cachePackage('core', pkg);
+    const pkg = await loadPackage(xccpZip);
+    manager.cachePackage('xccp', pkg);
 
-    const cached = manager.getCachedPackage('core');
+    const cached = manager.getCachedPackage('xccp');
     expect(cached).toBe(pkg);
-    expect(manager.getCachedPackage('CORE')).toBe(pkg); // Case insensitive
+    expect(manager.getCachedPackage('XCCP')).toBe(pkg); // Case insensitive
   });
 });

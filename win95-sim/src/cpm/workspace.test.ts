@@ -190,9 +190,9 @@ describe('CpmWorkspace', () => {
 
 describe('Workspace with package integration', () => {
   it('should layer multiple packages with overlay', () => {
-    // Simulate core + tools packages
-    const corePkg: LoadedPackage = {
-      manifest: { name: 'core', files: [] },
+    // Simulate xccp + tools packages
+    const xccpPkg: LoadedPackage = {
+      manifest: { name: 'xccp', files: [] },
       files: new Map([
         ['CCP.COM', new Uint8Array([0x01])],
         ['DIR.COM', new Uint8Array([0x02])],
@@ -208,8 +208,8 @@ describe('Workspace with package integration', () => {
 
     const workspace = new CpmWorkspace();
 
-    // A: = core + tools with writable overlay
-    const driveA = workspace.createPackageDrive([corePkg, toolsPkg], true);
+    // A: = xccp + tools with writable overlay
+    const driveA = workspace.createPackageDrive([xccpPkg, toolsPkg], true);
     workspace.mount('A', driveA);
 
     // B: = scratch space

@@ -606,15 +606,18 @@ export const ASSEMBLERS: Record<string, AssemblerConfig> = {
   ZASM: {
     name: 'ZASM',
     sourceExt: 'Z80',
-    outputExts: ['HEX', 'COM'],
+    outputExts: ['HEX', 'REL'],
     listingExts: ['PRN'],
     errorPatterns: ['error', 'illegal', 'undefined', 'unrecognized'],
-    // ZASM command: ZASM name.sol where s=source drive, o=output drive, l=list (Z=none)
-    // .AAZ = source A:, output A:, no listing. HEX = produce Intel HEX format
-    argsFormat: '{name}.AAZ HEX',
+    // ZASM command: ZASM PROG.sol where s=source, o=output, l=list drive
+    // Blanks default to current drive. Z=none for output/list
+    // .AAZ = source A:, output A:, no listing
+    argsFormat: '{name}.AAZ',
     noDrivePrefix: true,  // ZASM embeds drive letters in the .sol suffix
     showTerminal: true,
-    package: 'assemblers'
+    package: 'assemblers',
+    // Run from A: drive so defaults work correctly
+    workingDrive: 0
   },
   TURBO3: {
     name: 'TURBO',
@@ -1447,11 +1450,11 @@ main()
  * @example
  * ```ts
  * const workspace = new CpmWorkspace();
- * const core = await workspace.loadPackage('core');
+ * const xccp = await workspace.loadPackage('xccp');
  * const asm = await workspace.loadPackage('assemblers');
  *
  * workspace.mount('A', new OverlayDriveFS(new MemoryDriveFS())); // Source/output
- * workspace.mount('B', new PackageDriveFS([core, asm]));  // Tools
+ * workspace.mount('B', new PackageDriveFS([xccp, asm]));  // Tools
  *
  * const runner = new WorkspaceRunner(workspace);
  * runner.addSourceFile('TEST.ASM', source);
@@ -1658,7 +1661,7 @@ export class WorkspaceRunner {
  * ```ts
  * const runner = await createWorkspaceRunner(
  *   [], // A: starts empty
- *   [corePackage, assemblerPackage] // B: has tools
+ *   [xccpPackage, assemblerPackage] // B: has tools
  * );
  * ```
  */

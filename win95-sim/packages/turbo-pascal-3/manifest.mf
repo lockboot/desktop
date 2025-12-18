@@ -1,0 +1,37 @@
+{
+  "id": "turbo-pascal-3",
+  "name": "Turbo Pascal 3",
+  "version": "3.0",
+  "description": "Borland Turbo Pascal 3.0 compiler for CP/M",
+  "outputDir": "turbo-pascal-3",
+  "files": [
+    { "src": "TURBO.COM" },
+    { "src": "TURBO.MSG" },
+    { "src": "TURBO.OVR", "required": false },
+    { "src": "TINST.COM", "required": false },
+    { "src": "TINST.DTA", "required": false },
+    { "src": "TINST.MSG", "required": false }
+  ],
+  "meta": {
+    "type": "compiler"
+  },
+  "actions": [
+    {
+      "id": "turbo3",
+      "name": "Turbo Pascal 3",
+      "command": "TURBO",
+      "patterns": ["*.PAS"],
+      "outputExts": ["COM"],
+      "interactiveScript": [
+        { "wait": "(Y/N)?", "send": "Y" },
+        { "wait": "E)dit", "send": "W" },
+        { "wait": "Work file name:", "send": "{drive}:{name}.PAS\r" },
+        { "wait": "Loading", "send": "O" },
+        { "wait": "(Q)uit", "send": "C" },
+        { "wait": ")om-file", "send": "Q" },
+        { "wait": ">", "send": "C" },
+        { "wait": "Compiling", "send": "Q" }
+      ]
+    }
+  ]
+}

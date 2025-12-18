@@ -1,0 +1,46 @@
+{
+  "id": "cpm22",
+  "name": "CP/M 2.2",
+  "version": "2.2",
+  "description": "CP/M 2.2 userland",
+  "outputDir": "cpm22",
+  "files": [
+    { "src": "ASM.COM" },
+    { "src": "CCP.ASM" },
+    { "src": "COPY.COM" },
+    { "src": "CCP.COM", "loadAddress": "0xDC00", "type": "shell" },
+    { "src": "DDT.COM" },
+    { "src": "DISPLAY.COM" },
+    { "src": "DUMP.COM" },
+    { "src": "ED.COM" },
+    { "src": "FILES.COM" },
+    { "src": "LOAD.COM" },
+    { "src": "PAUSE.COM" },
+    { "src": "PIP.COM" },
+    { "src": "STAT.COM" },
+    { "src": "SUBMIT.COM" },
+    { "src": "XDIR.COM" },
+    { "src": "XSUB.COM" }
+  ],
+  "meta": {
+    "type": "system"
+  },
+  "actions": [
+    {
+      "id": "asm",
+      "name": "ASM (8080)",
+      "command": "ASM",
+      "patterns": ["*.ASM"],
+      "outputExts": ["COM", "HEX"],
+      "submit": "{drive}:\rA:ASM {drive}:{name}\rA:LOAD {name}\r{name}\r"
+    },
+    {
+      "id": "load",
+      "name": "LOAD (HEX→COM)",
+      "command": "LOAD",
+      "patterns": ["*.HEX"],
+      "outputExts": ["COM"],
+      "submit": "{drive}:\rA:LOAD {name}\r{name}\r"
+    }
+  ]
+}

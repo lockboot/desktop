@@ -1,4 +1,5 @@
 {
+  "id": "zork",
   "name": "Zork I",
   "version": "1.0",
   "description": "Zork I text adventure game for CP/M",

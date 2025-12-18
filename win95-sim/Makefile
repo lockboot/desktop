@@ -2,14 +2,13 @@
 SHELL := /bin/bash
 NVM_INIT := source ~/.nvm/nvm.sh 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 
-.PHONY: all dev build test test-watch install clean typecheck packages
+.PHONY: all dev build test test-watch install clean typecheck
 
 # Default target: build packages, run tests, build app
 all: packages test build
 
-# Build CP/M packages to public/cpm/
-packages:
-	@$(NVM_INIT) && npm run pkg:build
+.PHONY: packages
+packages: pkg-build pkg-validate
 
 # Start development server
 dev:
@@ -41,3 +40,6 @@ preview:
 # Clean build artifacts
 clean:
 	rm -rf dist node_modules/.vite
+
+pkg-%:
+	@$(NVM_INIT) && npm run pkg:$*

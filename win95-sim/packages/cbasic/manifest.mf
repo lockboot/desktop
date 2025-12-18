@@ -1,4 +1,5 @@
 {
+  "id": "cbasic",
   "name": "CBASIC",
   "version": "2.0",
   "description": "CBASIC compiler for CP/M",
@@ -9,7 +10,16 @@
     { "src": "RUN.COM" }
   ],
   "meta": {
-    "language": "cbasic",
     "type": "compiler"
-  }
+  },
+  "actions": [
+    {
+      "id": "cbas2",
+      "name": "CBASIC",
+      "command": "CBAS2",
+      "patterns": ["*.BAS"],
+      "outputExts": ["INT"],
+      "submit": "CBAS2 {drive}:{name}\r"
+    }
+  ]
 }

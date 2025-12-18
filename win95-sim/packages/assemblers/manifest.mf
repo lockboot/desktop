@@ -1,0 +1,51 @@
+{
+  "id": "assemblers",
+  "name": "Assemblers",
+  "version": "1.0",
+  "description": "Z80 and 8080 assemblers for CP/M",
+  "outputDir": "assemblers",
+  "files": [
+    { "src": "lasm3.com" },
+    { "src": "z1.com" },
+    { "src": "z80mr.com" },
+    { "src": "zasm.com" },
+    { "src": "zasm.doc", "required": false }
+  ],
+  "meta": {
+    "type": "development"
+  },
+  "actions": [
+    {
+      "id": "lasm3",
+      "name": "LASM3 (8080)",
+      "command": "LASM3",
+      "patterns": ["*.ASM"],
+      "outputExts": ["COM", "HEX"],
+      "submit": "LASM3 {drive}:{name}\r"
+    },
+    {
+      "id": "z1",
+      "name": "Z1 (Z80)",
+      "command": "Z1",
+      "patterns": ["*.AZM"],
+      "outputExts": ["COM", "HEX"],
+      "submit": "Z1 {drive}:{name}\r"
+    },
+    {
+      "id": "z80mr",
+      "name": "Z80MR (Z80)",
+      "command": "Z80MR",
+      "patterns": ["*.AZM"],
+      "outputExts": ["COM", "HEX", "REL"],
+      "submit": "Z80MR {drive}:{name}\r"
+    },
+    {
+      "id": "zasm",
+      "name": "ZASM Macro",
+      "command": "ZASM",
+      "patterns": ["*.Z80"],
+      "outputExts": ["HEX", "REL"],
+      "submit": "ZASM {name}.AAZ\r"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 {
+  "id": "bds-c",
   "name": "BDS C",
   "version": "1.60",
   "description": "BDS C compiler for CP/M",
@@ -10,10 +11,20 @@
     { "src": "CLIB.COM" },
     { "src": "C.CCC" },
     { "src": "DEFF.CRL" },
-    { "src": "DEFF2.CRL" }
+    { "src": "DEFF2.CRL" },
+    { "src": "STDIO.H" }
   ],
   "meta": {
-    "language": "bds-c",
     "type": "compiler"
-  }
+  },
+  "actions": [
+    {
+      "id": "bdsc",
+      "name": "BDS C",
+      "command": "CC",
+      "patterns": ["*.C"],
+      "outputExts": ["COM"],
+      "submit": "CC {drive}:{name}\rCLINK {drive}:{name}\r"
+    }
+  ]
 }

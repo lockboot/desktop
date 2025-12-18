@@ -78,6 +78,11 @@ export class MemoryFS implements VirtualFS {
     this.openFiles.delete(handle);
   }
 
+  closeAll(): void {
+    // MemoryFS writes immediately, so just clear handles
+    this.openFiles.clear();
+  }
+
   read(handle: number, buffer: Uint8Array, offset: number, length: number, position: number): number {
     const file = this.openFiles.get(handle);
     if (!file) return 0;

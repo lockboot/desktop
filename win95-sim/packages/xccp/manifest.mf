@@ -1,17 +1,19 @@
 {
-  "name": "CP/M Core Utilities",
+  "id": "xccp",
+  "name": "XCCP Shell & Utilities",
   "version": "1.0",
-  "description": "Essential shell and utilities for CP/M - always loaded",
-  "outputDir": "core",
+  "description": "XCCP extended shell and essential utilities for CP/M",
+  "outputDir": "xccp",
   "files": [
     { "src": "xccp.com" },
     { "src": "dir.com" },
     { "src": "era.com" },
     { "src": "ren.com" },
-    { "src": "d.com" }
+    { "src": "d.com" },
+    { "src": "rm.com" }
   ],
   "meta": {
-    "type": "core",
+    "type": "shell",
     "alwaysLoad": true,
     "shell": "XCCP.COM"
   }

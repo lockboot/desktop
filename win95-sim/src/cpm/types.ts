@@ -9,6 +9,9 @@ export interface VirtualFS {
   /** Close a file handle */
   close(handle: number): void;
 
+  /** Close all open file handles (flush pending writes) */
+  closeAll(): void;
+
   /** Read from file at position, returns bytes read */
   read(handle: number, buffer: Uint8Array, offset: number, length: number, position: number): number;
 

@@ -1,0 +1,367 @@
+
+
+
+                                       X C C P
+
+                                     Version 1.0
+                        An Extended Console Command Processor
+                                         for
+                                       CP/M-80
+
+
+
+        1.0 INTRODUCTION
+
+        XCCP  is  a  substitute console command processor  (CCP)  for  Digital 
+        Research  Inc.'s CP/M-80 operating system.   XCCP provides  additional 
+        functions  not provided in the "stock" CP/M CCP at the expense of  the 
+        loss of a small portion (1 Kbyte) of the transient program area (TPA).  
+        The memory lost in this way is not usually important on systems having 
+        64K bytes of memory.
+
+
+        1.1 ADDED FUNCTIONALITY
+
+        XCCP  provides the following features not provided by the  distributed 
+        CP/M CCP.
+
+
+        1.1.1 COMMAND RECALL
+
+        Up  to  approximately  240  characters of  previous  commands  may  be 
+        recalled for re-issue with a single keystroke.
+
+
+        1.1.2 COMMAND LINE EDITING
+
+        Both  recalled commands and newly entered commands may be edited using 
+        cursor  control  keys  and  dual  mode  (insert/overstrike)  character 
+        insertion.  Characters may be deleted anywhere on the command line.
+
+
+        1.1.3 COMMAND RECOGNITION
+
+        A  list of possible commands or filenames matching a  partially  typed 
+        command  line  can  be  displayed  with  a  single  keystroke  without 
+        destroying  the current command.   No more aborting a command to  list 
+        your directory because you forgot an obtuse filename.
+
+        If  no command has been started,  a list of all possible commands that 
+        may be issued from the current user area is displayed.
+
+
+        1.1.4 COMMAND COMPLETION
+
+        If  a  partially  typed command has only a  single  possible  matching 
+        command or filename,  the rest of the command may be filled in on  the 
+        command line automatically, in most cases eliminating the need to type 
+        long commands out in their entirety.
+
+
+
+
+
+
+
+
+        1.1.5 WILDCARD RECOGNITION
+
+        Filenames  on the command line may contain  wildcard  characters,  and 
+        with a single keystroke,  all possible matches can be displayed.  This 
+        is  useful,  for example,  if you have forgotten the  file  name,  but 
+        remember the file type.  If only one match is found, it is inserted on 
+        the command line in place of the wildcarded filename.
+
+
+        1.1.6 MULTIPLE COMMANDS PER LINE
+
+        Multiple  commands,  up to 127 characters,  may be issued on a  single 
+        command  line  for sequential execution by separating  the  individual 
+        commands with a special delimiting character.
+
+
+        1.1.7 AUTOMATIC SEARCH OF DISK A USER AREA 0
+
+        If  a  command is not found in the current user area,  user area 0  on 
+        disk A is automatically searched.
+
+
+        1.1.8 DISK AND USER SPECIFICATION
+
+        Changing  user  area and disk are accomplished with the  same  syntax, 
+        eliminating the need for the cumbersome USER command.  Additionally, a 
+        user number may optionally be included in the command (with or without 
+        a  disk  designator),  causing that user area to be searched  for  the 
+        command instead of the current user area.
+
+
+        1.1.9 NO INVOLUNTARY WARM RESTARTS
+
+        Return  to  the CCP from an application program is much  faster  under 
+        XCCP,  since  warm restarts are only performed upon  user  request.  A 
+        control-C may be entered at any time,  even in the middle of a command 
+        line,  resetting  the  disk system without disrupting the  command  in 
+        progress.
+
+
+        1.1.10 EXIT TO STANDARD CP/M CCP
+
+        A single keystroke returns control to the standard CCP,  although this 
+        is  unlikely to be desirable except when it is necessary to perform  a 
+        SAVE operation.
+
+
+        1.1.11 USER NUMBER DISPLAYED IN PROMPT
+
+        The current CP/M user area number is displayed in the XCCP prompt as a 
+        constant reminder.
+
+
+
+
+
+
+
+
+
+
+        2.0  XCCP COMMANDS
+
+        To  invoke XCCP,  simply type XCCP as you would for any CP/M  program.  
+        Optionally, an XCCP command line may be included in the invocation.
+
+        Example:       A>XCCP B15:;FIND MAST.LST MDM712
+
+
+        2.1 RECOGNITION AND COMPLETION
+
+        The  ESC (Escape,  ASCII 27 decimal) key may be used whenever you  are 
+        unable  to  recall the exact spelling of a  command  or  filename,  or 
+        simply to avoid typing long commands or filenames in their entirety.  
+
+        After  ESC is entered,  the characters on the command line between the 
+        cursor  and  the  first  preceeding space are used  to  search  for  a 
+        matching  file  on the appropriate disk and user (Disk A,  user  0  is 
+        searched if the characters being used for the match are the first word 
+        of the command line).   If more than one file is found,  the  matching 
+        files  are listed,  and the command redisplayed for user  action.   If 
+        only  one match is found,  the command is filled in with that file  or 
+        command.   The  cursor is left at the end of the command,  for further 
+        user input.  You may hit RETURN at this point to issue the command.
+
+
+        2.2 COMMAND RECALL
+
+        Commands are maintained in a circular buffer in memory.  That is, when 
+        the end of the list is reached, the next command displayed will be the 
+        first  one again.   The WORDSTAR arrow keys (^E for  uparrow,  ^X  for 
+        downarrow)  are  used to move about within the recall command  buffer.  
+        The  uparrow  will  redisplay commands  issued  before  the  displayed 
+        command,  while  the downarrow will display commands issued after the 
+        command currently displayed.   In both cases, if the end of the buffer 
+        is reached, the cycle simply starts over.
+
+        If,  after  perusing  the recall command buffer,  you can't  find  the 
+        command  you  want,  and  none of the ones there are close  enough  to 
+        warrant editing,  you can cancel the currently displayed command  with 
+        ^U.
+
+        2.3 COMMAND LINE EDITING
+
+        The  WORDSTAR arrow keys (^S for leftarrow and ^D for rightarrow)  can 
+        be  used  at any time to move the cursor about on  the  command  line.  
+        Once  the  cursor is positioned,  characters may be entered in  either 
+        overstrike or insert mode.   The initial mode is overstrike.   The  ^V 
+        key  is used to toggle the editing mode between overstrike and  insert 
+        (as  in WORDSTAR).
+
+        When the cursor is not at the end of the command line, both the delete 
+        and  backspace  keys will remove the character which is at the  cursor 
+        position,  appearing  to "gobble up" the command line to the right  of 
+
+
+
+
+
+
+        the  cursor.   When the cursor is at the end of the line,  these  keys 
+        remove the character to the left of the cursor, allowing easy deletion 
+        of mistyped characters.
+
+
+
+        2.4 MULTIPLE COMMANDS PER LINE
+
+        Multiple  commands  may be entered on a single line by separating  the 
+        commands  with  a semicolon character.   When the carriage  return  is 
+        struck, the commands will be executed in the order issued.  There MUST 
+        NOT  be any spaces between the semicolon and the characters on  either 
+        side of it.
+
+
+
+        2.5 DISK/USER SPECIFICATION
+
+        If a disk and/or user specification of the form du:  is prefixed to  a 
+        command (the first word of the command line or after a semicolon), the 
+        specified  disk and/or user area is searched for the .COM file  before 
+        A0:.   Either  or  both  the disk letter and user area number  may  be 
+        included in the command this way.   File specifications on the command 
+        line MUST NOT have user area numbers,  although disk designations  are 
+        allowed, as in CP/M's standard CCP.
+
+        Example:       A6:WS C:TEST.DOC is acceptable to XCCP, while
+
+                       A6:WS C2:TEST.DOC is not.                              
+
+
+        If the du: designation is entered alone on a command line, the default 
+        disk and/or user area is changed.
+
+        2.6 WARM BOOT
+
+        The  effects  of a CP/M warm boot may be achieved through the  use  of 
+        CTRL-C.   This  results in a reset of the disk I/O subsystem,  and  is 
+        likely to be necessary after changing floppy disks.   This function is 
+        normally done on most program exits, resulting in a delay in return to 
+        the CCP prompt.  By making this function user requested, return to the 
+        CCP  prompt  on program exit is much faster with XCCP  than  with  the 
+        stock CCP.
+
+
+        2.7 EXIT TO CP/M CCP
+
+        Entering  CTRL-Y  in  response to the XCCP  prompt  will  restore  the 
+        original CP/M CCP.
+
+
+        2.8 COMMAND CANCELLATION
+
+        An  entire  command line may be revoked before issuance  with  the  ^U 
+        character.
+
+
+
+
+
+
+
+
+        2.9 WILDCARD USE
+
+        The  wildcard  translation feature of XCCP may be used  to  determine, 
+        before execution of a program,  just which files will be affected by a 
+        command.  For example, if the command ERASE *.HEX were terminated with 
+        an  ESC rather than a carriage return,  a list of the files which  are 
+        about  to  be  deleted would be displayed,  allowing the user  a  last 
+        chance to abort the command before issuing the carriage return.
+
+        Note that incomplete file specifications, such as T*.A, are treated as 
+        if   they  ended  with  wildcards  (T*.A*),   due  to  XCCP's  command 
+        recognition/completion algorithm.  Thus, in this case, more files than 
+        will actually be affected by the command may be displayed  (e.g.  both 
+        TEST.A and TEST.ASM would be displayed).
+
+
+
+        3.0 LIMITATIONS AND CONSTRAINTS
+
+        A  number  of features of the standard CP/M CCP were left out in  this 
+        first version of XCCP in order to avoid increasing XCCP's size  beyond 
+        what could be easily tolerated in a 64 Kbyte system.
+
+
+        3.1 NO SUBMIT
+
+        The CP/M SUBMIT command will not function under XCCP.   Use ^Y to exit 
+        to the standard CCP before using SUBMIT.
+
+
+        3.2 NO SAVE
+
+        There is no SAVE command in XCCP.   Use ^Y to exit to the standard CCP 
+        before using SAVE.  ^Y does not alter the contents of TPA memory.
+
+
+        3.3 NO BUILT-IN COMMANDS
+
+        The  CP/M  CCP's  commands DIR,  REN,  ERA,  USER,  and TYPE  are  not 
+        available in XCCP.   Transient programs are included with XCCP to take 
+        the place of REN and ERA.   USER is supersceded by superior facilities 
+        within XCCP, and a great number of DIR and TYPE programs are available 
+        in the public domain.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        4.0 VERSION 2.0
+
+        Version  2.0  of XCCP is expected to include a CP/M-compatible  SUBMIT 
+        facility  (all  your existing .SUB files will  work)  with  additional 
+        features such as internal variables, conditional branching, and nested 
+        procedures.   Also planned for V2.0 are I/O redirection (like UNIX and 
+        MS-DOS's  <,  >,  and | operators),  key redefinition (as in  QwikKey, 
+        Smartkey, etc.), and hierarchical directory support.  These additional 
+        features  will  not  increase the size of XCCP,  since  they  will  be 
+        implemented  as overlays.   The functions chosen for implementation in 
+        overlays  were  chosen with a view toward which functions  access  the 
+        disk in any case, and those functions which are the least utilized.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

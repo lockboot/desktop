@@ -210,7 +210,6 @@
 
 .theme-nirvana .window-content {
   background: var(--window-content-bg);
-  border: var(--input-border);
 }
 
 .theme-nirvana .window.maximized {

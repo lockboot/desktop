@@ -133,14 +133,14 @@ export function registerCpmIde(desktop: Desktop): void {
     const initWorkspace = async () => {
       if (workspaceInitialized) return;
 
-      // Load core package for shell
-      const core = await workspace.loadPackage('core');
+      // Load xccp package for shell
+      const xccp = await workspace.loadPackage('xccp');
 
       // A: = source files (writable)
       workspace.mount('A', new MemoryDriveFS());
 
-      // B: = tools (starts with core, add language tools as needed)
-      workspace.mount('B', new OverlayDriveFS(new PackageDriveFS([core])));
+      // B: = tools (starts with xccp, add language tools as needed)
+      workspace.mount('B', new OverlayDriveFS(new PackageDriveFS([xccp])));
 
       // C: = output (writable scratch)
       workspace.mount('C', new MemoryDriveFS());
@@ -248,9 +248,9 @@ export function registerCpmIde(desktop: Desktop): void {
         terminal.writeString(`B: Tools (${workspace.listFiles('B').length})\r\n`);
         terminal.writeString('\r\n');
 
-        // Get shell from core package
-        const core = await workspace.loadPackage('core');
-        const shellName = (core.manifest.meta?.shell as string) ?? 'XCCP.COM';
+        // Get shell from xccp package
+        const xccp = await workspace.loadPackage('xccp');
+        const shellName = (xccp.manifest.meta?.shell as string) ?? 'XCCP.COM';
         const shellBinary = workspace.readFile('B', shellName);
 
         if (!shellBinary) {

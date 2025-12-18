@@ -1,0 +1,20 @@
+
+COMMAND RECALL
+   ^E (uparrow)		recall previous command
+   ^X (downarrow)	recall subsequent command
+
+COMMAND EDITING
+   ^S (leftarrow)	move left in command line
+   ^D (rightarrow)	move right in command line
+   ^V	 		toggle overstrike/insert mode
+   ^H (BS) or DEL	delete character
+   ^U 			cancel unissued command
+
+MULTIPLE COMMANDS - Separate with semicolon (;)
+
+TO CHANGE DISK/USER -  du:  (D=disk, U=user; either or both)
+
+RESET DISK SYSTEM - CTRL-C
+
+RETURN TO CP/M CCP - CTRL-Y
+
