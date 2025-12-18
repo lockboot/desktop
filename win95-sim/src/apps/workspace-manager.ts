@@ -1287,16 +1287,55 @@ export function registerWorkspaceManager(desktop: Desktop): void {
       await workspace.configureDrive({ letter: 'B', packages: [], writable: true });
 
       // Create a sample file in B: (scratch drive)
+      // This template demonstrates I/O, math, and conditional logic in 8080 assembly
       workspace.writeFile('B', 'HELLO.ASM', new TextEncoder().encode(
-        '; Hello World for CP/M (8080 assembly)\r\n' +
+        '; 8080 Assembly - Add two single digits\r\n' +
         '        ORG     100H\r\n' +
         '\r\n' +
-        'START:  LXI     D,MSG       ; Load message address\r\n' +
-        '        MVI     C,9         ; BDOS print string\r\n' +
-        '        CALL    5           ; Call BDOS\r\n' +
-        '        RET                 ; Return to CP/M\r\n' +
+        'START:  LXI     D,MSG1      ; "First digit: "\r\n' +
+        '        MVI     C,9\r\n' +
+        '        CALL    5\r\n' +
+        '        MVI     C,1         ; Read char\r\n' +
+        '        CALL    5\r\n' +
+        '        SUI     \'0\'         ; Convert ASCII to number\r\n' +
+        '        MOV     B,A         ; Save first digit in B\r\n' +
         '\r\n' +
-        'MSG:    DB      \'Hello from CP/M!$\'\r\n' +
+        '        LXI     D,MSG2      ; "Second digit: "\r\n' +
+        '        MVI     C,9\r\n' +
+        '        CALL    5\r\n' +
+        '        MVI     C,1         ; Read char\r\n' +
+        '        CALL    5\r\n' +
+        '        SUI     \'0\'         ; Convert ASCII to number\r\n' +
+        '\r\n' +
+        '        ADD     B           ; Add digits (result in A)\r\n' +
+        '        MOV     B,A         ; Save result\r\n' +
+        '\r\n' +
+        '        LXI     D,MSG3      ; "Sum: "\r\n' +
+        '        MVI     C,9\r\n' +
+        '        CALL    5\r\n' +
+        '\r\n' +
+        '        MOV     A,B         ; Get result\r\n' +
+        '        CPI     10          ; >= 10?\r\n' +
+        '        JC      ONEDIG      ; No, single digit\r\n' +
+        '        MVI     E,\'1\'       ; Print tens digit\r\n' +
+        '        MVI     C,2\r\n' +
+        '        CALL    5\r\n' +
+        '        MOV     A,B\r\n' +
+        '        SUI     10          ; Get ones digit\r\n' +
+        'ONEDIG: ADI     \'0\'         ; Convert to ASCII\r\n' +
+        '        MOV     E,A\r\n' +
+        '        MVI     C,2\r\n' +
+        '        CALL    5\r\n' +
+        '\r\n' +
+        '        LXI     D,CRLF\r\n' +
+        '        MVI     C,9\r\n' +
+        '        CALL    5\r\n' +
+        '        JMP     0           ; Exit to CP/M\r\n' +
+        '\r\n' +
+        'MSG1:   DB      13,10,\'First digit: $\'\r\n' +
+        'MSG2:   DB      13,10,\'Second digit: $\'\r\n' +
+        'MSG3:   DB      13,10,\'Sum: $\'\r\n' +
+        'CRLF:   DB      13,10,\'$\'\r\n' +
         '\r\n' +
         '        END     START\r\n\x1A'
       ));

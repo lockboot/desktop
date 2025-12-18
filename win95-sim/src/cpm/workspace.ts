@@ -158,7 +158,7 @@ export async function fetchAvailablePackages(baseUrl = './cpm'): Promise<Package
  */
 export class WorkspaceFS implements VirtualFS {
   private driveManager: DriveManager;
-  private handles = new Map<number, { drive: DriveFS; name: string; content: Uint8Array; position: number; mode: string; dirty: boolean }>();
+  private handles = new Map<number, { drive: DriveFS; name: string; content: Uint8Array; position: number; mode: string }>();
   private nextHandle = 1;
 
   constructor(driveManager: DriveManager) {
@@ -177,8 +177,6 @@ export class WorkspaceFS implements VirtualFS {
     const fileName = match[2].toUpperCase();
     const driveFs = this.driveManager.drive(driveLetter);
     if (!driveFs) {
-      console.warn(`[WorkspaceFS] Drive ${driveLetter}: not mounted`);
-      console.log(`[WorkspaceFS] Available drives: ${this.driveManager.listDrives().map(d => d.letter).join(', ')}`);
       return null;
     }
     return { drive: driveFs, name: fileName };
@@ -194,24 +192,20 @@ export class WorkspaceFS implements VirtualFS {
       const content = drive.readFile(name);
       if (!content) return -1;
       const handle = this.nextHandle++;
-      // dirty=false for read modes - only set dirty when actually written
-      this.handles.set(handle, { drive, name, content: new Uint8Array(content), position: 0, mode, dirty: false });
+      this.handles.set(handle, { drive, name, content: new Uint8Array(content), position: 0, mode });
       return handle;
     }
 
     if (mode === 'w' || mode === 'wx+') {
       // wx+ = create exclusive (fail if exists)
       if (mode === 'wx+' && drive.exists(name)) {
-        console.log(`[WorkspaceFS] open ${path} wx+ failed: file exists`);
         return -1;
       }
       // Write empty file to drive immediately so it's visible to other operations
       // This matches CP/M semantics where MAKE creates the directory entry
       drive.writeFile(name, new Uint8Array(0));
       const handle = this.nextHandle++;
-      // dirty=true for write modes - these files need to be saved
-      this.handles.set(handle, { drive, name, content: new Uint8Array(0), position: 0, mode, dirty: true });
-      console.log(`[WorkspaceFS] open ${path} wx+ success: handle=${handle}`);
+      this.handles.set(handle, { drive, name, content: new Uint8Array(0), position: 0, mode });
       return handle;
     }
 
@@ -219,23 +213,10 @@ export class WorkspaceFS implements VirtualFS {
   }
 
   close(handle: number): void {
-    const h = this.handles.get(handle);
-    if (h && h.dirty) {
-      // Only write back if actually modified
-      console.log(`[WorkspaceFS] close: Writing ${h.content.length} bytes to ${h.name}`);
-      h.drive.writeFile(h.name, h.content);
-    }
     this.handles.delete(handle);
   }
 
   closeAll(): void {
-    for (const [handle, h] of this.handles) {
-      if (h.dirty) {
-        // Only write back if actually modified
-        console.log(`[WorkspaceFS] closeAll: Writing ${h.content.length} bytes to ${h.name} (handle ${handle})`);
-        h.drive.writeFile(h.name, h.content);
-      }
-    }
     this.handles.clear();
   }
 
@@ -255,9 +236,6 @@ export class WorkspaceFS implements VirtualFS {
     const h = this.handles.get(handle);
     if (!h) return 0;
 
-    // Mark as dirty since we're modifying the file
-    h.dirty = true;
-
     // Expand content if needed
     const endPosition = position + length;
     if (endPosition > h.content.length) {
@@ -266,8 +244,11 @@ export class WorkspaceFS implements VirtualFS {
       h.content = newContent;
     }
 
-    // Write data
+    // Write data to buffer
     h.content.set(buffer.subarray(offset, offset + length), position);
+
+    // Write immediately to drive - files should be instantly visible to other processes
+    h.drive.writeFile(h.name, h.content);
     return length;
   }
 
@@ -361,7 +342,7 @@ export class WorkspaceFS implements VirtualFS {
 export class MergedWorkspaceFS implements VirtualFS {
   private base: VirtualFS;
   private extraDrives = new Map<string, DriveFS>();
-  private handles = new Map<number, { drive: DriveFS; name: string; content: Uint8Array; position: number; mode: string; dirty: boolean }>();
+  private handles = new Map<number, { drive: DriveFS; name: string; content: Uint8Array; position: number; mode: string }>();
   private nextHandle = 1;
 
   constructor(base: VirtualFS) {
@@ -399,36 +380,26 @@ export class MergedWorkspaceFS implements VirtualFS {
         const content = drive.readFile(name);
         if (!content) return -1;
         const handle = this.nextHandle++;
-        // dirty=false for read modes - only set dirty when actually written
-        this.handles.set(handle, { drive, name, content: new Uint8Array(content), position: 0, mode, dirty: false });
+        this.handles.set(handle, { drive, name, content: new Uint8Array(content), position: 0, mode });
         return handle;
       }
       if (mode === 'w' || mode === 'wx+') {
         if (mode === 'wx+' && drive.exists(name)) {
-          console.log(`[MergedFS] open ${path} wx+ failed: file exists on extra drive`);
           return -1;
         }
         // Write empty file to drive immediately so it's visible to other operations
         drive.writeFile(name, new Uint8Array(0));
         const handle = this.nextHandle++;
-        // dirty=true for write modes - these files need to be saved
-        this.handles.set(handle, { drive, name, content: new Uint8Array(0), position: 0, mode, dirty: true });
-        console.log(`[MergedFS] open ${path} wx+ success on extra drive: handle=${handle}`);
+        this.handles.set(handle, { drive, name, content: new Uint8Array(0), position: 0, mode });
         return handle;
       }
       return -1;
     }
-    console.log(`[MergedFS] open ${path} mode=${mode} -> delegating to base`);
     return this.base.open(path, mode);
   }
 
   close(handle: number): void {
-    const h = this.handles.get(handle);
-    if (h) {
-      if (h.dirty) {
-        // Only write back if actually modified
-        h.drive.writeFile(h.name, h.content);
-      }
+    if (this.handles.has(handle)) {
       this.handles.delete(handle);
       return;
     }
@@ -436,15 +407,7 @@ export class MergedWorkspaceFS implements VirtualFS {
   }
 
   closeAll(): void {
-    // Close our extra handles
-    for (const [, h] of this.handles) {
-      if (h.dirty) {
-        // Only write back if actually modified
-        h.drive.writeFile(h.name, h.content);
-      }
-    }
     this.handles.clear();
-    // Delegate to base
     this.base.closeAll();
   }
 
@@ -463,9 +426,6 @@ export class MergedWorkspaceFS implements VirtualFS {
   write(handle: number, buffer: Uint8Array, offset: number, length: number, position: number): number {
     const h = this.handles.get(handle);
     if (h) {
-      // Mark as dirty since we're modifying the file
-      h.dirty = true;
-
       const endPosition = position + length;
       if (endPosition > h.content.length) {
         const newContent = new Uint8Array(endPosition);
@@ -473,6 +433,9 @@ export class MergedWorkspaceFS implements VirtualFS {
         h.content = newContent;
       }
       h.content.set(buffer.subarray(offset, offset + length), position);
+
+      // Write immediately to drive - files should be instantly visible to other processes
+      h.drive.writeFile(h.name, h.content);
       return length;
     }
     return this.base.write(handle, buffer, offset, length, position);

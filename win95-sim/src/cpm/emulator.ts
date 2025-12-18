@@ -504,30 +504,12 @@ export class CpmEmulator implements Hal {
 
   /** Execute one instruction and handle any CP/M calls */
   async step(): Promise<void> {
-    const pcBefore = this.z80.regs.pc;
-    const aBefore = this.z80.regs.a;
-
-    // Debug: trace execution at TPA start
-    if (pcBefore === 0x100) {
-      console.log(`[EXEC] Running program at 0x100, opcode=${this.memory[0x100].toString(16)}`);
-    }
-
     this.z80.step();
 
     const pc = this.z80.regs.pc;
 
-    // Debug: check if A changed unexpectedly after RET from BDOS
-    if (pcBefore === BDOS_ADDRESS && this.z80.regs.a !== aBefore) {
-      console.log(`[DEBUG] A changed during RET from BDOS: ${aBefore} -> ${this.z80.regs.a}`);
-    }
-
     if (pc === BDOS_ADDRESS) {
-      const func = this.z80.regs.c;
       await this.handleBdos();
-      // Log function number and result for debugging
-      if (this.z80.regs.a === 0xFF) {
-        console.log(`[DEBUG] BDOS ${func} returned A=FF (error)`);
-      }
     } else if (pc >= CBIOS_ADDRESS) {
       await this.handleCbios();
     } else if (pc === 0) {
@@ -694,7 +676,6 @@ export class CpmEmulator implements Hal {
 
       case 2: { // Console output
         this.traceEntry(fname, `E=${this.traceVal(regs.e, true)}`);
-        console.log(`[BDOS2] Console output: '${String.fromCharCode(regs.e)}' (0x${regs.e.toString(16)})`);
         this.con.write(regs.e);
         break;
       }
@@ -845,21 +826,12 @@ export class CpmEmulator implements Hal {
       case 15: { // Open file
         const fcb = new Fcb(this.memory.subarray(regs.de));
         const filename = fcb.getFilename();
-        // Debug: dump raw FCB bytes for filename issues
-        if (this.syscallTrace) {
-          const raw = Array.from(this.memory.subarray(regs.de, regs.de + 12))
-            .map((b, i) => i === 0 ? `dr=${b}` : String.fromCharCode(b & 0x7F))
-            .join('');
-          console.log(`[BDOS ${this.traceTime()}] F_OPEN FCB raw: ${raw}`);
-        }
         this.traceEntry(fname, `"${filename}"`);
         fcb.clear();
         this.log(`Opening ${filename}`);
         const pathname = this.makePathname(fcb);
-        console.log(`[BDOS15] Open file: "${filename}" fcb.drive=${fcb.drive}, currentDrive=${this.currentDrive}, pathname=${pathname}`);
         if (!pathname) {
           regs.a = 0xFF;
-          console.log(`[BDOS15] FAILED: pathname is null`);
           this.traceResult(fname, 'A=FF (invalid drive)');
           break;
         }
@@ -871,7 +843,6 @@ export class CpmEmulator implements Hal {
         } else {
           fcb.fd = 0;
           regs.a = 0xFF;
-          console.log(`[BDOS15] FAILED: fs.open("${pathname}", "r+") returned ${fd}, exists=${this.fs.exists(pathname)}`);
           this.traceResult(fname, 'A=FF (not found)');
         }
         break;
@@ -941,19 +912,16 @@ export class CpmEmulator implements Hal {
       case 20: { // Read sequential
         const fcb = new Fcb(this.memory.subarray(regs.de));
         const filename = fcb.getFilename();
-        console.log(`[BDOS20] Read sequential: "${filename}" fd=${fcb.fd}`);
         let fd = fcb.fd;
         if (fd <= 0) {
           // Try to auto-open the file
           const pathname = this.makePathname(fcb);
-          console.log(`[BDOS20] Auto-opening: pathname=${pathname}`);
           if (!pathname) {
             regs.a = 0x09;
             this.traceResult(BDOS_FUNCTION_NAMES[20] ?? 'F_READ', 'A=09 (invalid drive)');
             break;
           }
           fd = this.fs.open(pathname, 'r');
-          console.log(`[BDOS20] Auto-open result: fd=${fd}`);
           if (fd < 0) {
             regs.a = 0x09; // Invalid FCB
             this.traceResult(BDOS_FUNCTION_NAMES[20] ?? 'F_READ', 'A=09 (file not open)');
@@ -964,18 +932,13 @@ export class CpmEmulator implements Hal {
         const recordNum = fcb.currentRecord;
         this.log(`Sequential read record ${recordNum} from ${filename}`);
         const bytesRead = this.fs.read(fd, this.memory, this.dma, RECORD_SIZE, recordNum * RECORD_SIZE);
-        console.log(`[BDOS20] Read "${filename}" rec=${recordNum} fd=${fd} -> ${bytesRead} bytes, DMA=0x${this.dma.toString(16)}`);
         if (bytesRead === 0) {
           regs.a = 0x01; // EOF
-          console.log(`[BDOS20] EOF on record ${recordNum}`);
           this.traceEntry(fname, `"${filename}" rec=${recordNum}`);
           this.traceResult(fname, 'A=01 (EOF)');
         } else {
           this.memory.fill(26, this.dma + bytesRead, this.dma + RECORD_SIZE); // ^Z padding
-          // Debug: show what was read
           const readData = this.memory.slice(this.dma, this.dma + bytesRead);
-          const hexPreview = Array.from(readData.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ');
-          console.log(`[BDOS20] Data at 0x${this.dma.toString(16)}: ${hexPreview}`);
           const readPreview = String.fromCharCode(...readData.slice(0, 60).filter(b => b >= 32 && b < 127));
           this.traceEntry(fname, `"${filename}" rec=${recordNum} => "${readPreview}..."`);
           regs.a = 0x00;
@@ -1037,24 +1000,19 @@ export class CpmEmulator implements Hal {
         fcb.clear();
         this.log(`Making ${filename}`);
         const pathname = this.makePathname(fcb);
-        console.log(`[BDOS22] Make file: "${filename}" fcb.drive=${fcb.drive}, currentDrive=${this.currentDrive}, pathname=${pathname}, exists=${pathname ? this.fs.exists(pathname) : 'N/A'}`);
         if (!pathname) {
           regs.a = 0xFF;
-          console.log(`[BDOS22] FAILED: pathname is null, returning A=0xFF`);
           this.traceResult(fname, 'A=FF (invalid drive)');
           break;
         }
         const fd = this.fs.open(pathname, 'wx+');
-        console.log(`[BDOS22] fs.open("${pathname}", "wx+") returned fd=${fd}`);
         if (fd >= 0) {
           fcb.fd = fd;
           regs.a = 0x00;
-          console.log(`[BDOS22] SUCCESS: returning A=0x00 (fd=${fd})`);
           this.traceResult(fname, `A=00 fd=${fd}`);
         } else {
           fcb.fd = 0;
           regs.a = 0xFF;
-          console.log(`[BDOS22] FAILED: fs.open returned ${fd}, returning A=0xFF`);
           this.traceResult(fname, 'A=FF (error)');
         }
         break;
