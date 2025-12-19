@@ -55,6 +55,8 @@ function updateThemePicker(desktop: Desktop) {
 }
 
 function showThemePicker(menuItem: HTMLElement, desktop: Desktop) {
+  // Notify other submenus to close
+  document.dispatchEvent(new CustomEvent('submenu-open', { detail: { id: 'theme' } }));
   const startMenu = document.getElementById('start-menu')!;
   const startMenuRect = startMenu.getBoundingClientRect();
   const itemRect = menuItem.getBoundingClientRect();
@@ -123,6 +125,13 @@ export function registerThemePicker(desktop: Desktop): void {
   desktop.menuManager.onClose(() => {
     themePicker.classList.remove('visible');
   });
+
+  // Close when another submenu opens
+  document.addEventListener('submenu-open', ((e: CustomEvent) => {
+    if (e.detail.id !== 'theme') {
+      themePicker.classList.remove('visible');
+    }
+  }) as EventListener);
 
   // Prevent clicks inside theme picker from closing it
   themePicker.addEventListener('click', e => e.stopPropagation());

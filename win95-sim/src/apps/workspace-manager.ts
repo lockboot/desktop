@@ -112,14 +112,40 @@ const STYLES = `
   .ws-modal-btns { display: flex; gap: 4px; margin-top: 12px; justify-content: center; }
 `;
 
-/**
- * Register Workspace Manager with the desktop taskbar.
- */
-export function registerWorkspaceManager(desktop: Desktop): void {
-  desktop.taskbar.addItem('background:#1e1e1e;border:1px solid #4fc3f7', 'Workspace', async () => {
-    workspaceCount++;
+interface WorkspaceOptions {
+  /** Packages to load on A: drive */
+  packages?: string[];
+  /** Whether to add demo files to B: drive (default: true for empty packages) */
+  addDemoFiles?: boolean;
+  /** Package to expand in the file tree (default: first package) */
+  expandPackage?: string;
+}
 
-    const windowId = desktop.wm.create({
+/**
+ * Open a new workspace with a specific package loaded on A: drive.
+ * Called from Programs menu to launch packages directly.
+ * Always includes cpm22 as base layer for essential utilities.
+ */
+export async function openWorkspaceWithPackage(desktop: Desktop, packageId: string): Promise<void> {
+  await createWorkspaceWindow(desktop, {
+    packages: ['cpm22', packageId],
+    addDemoFiles: false,
+    expandPackage: packageId
+  });
+}
+
+/**
+ * Create a workspace window with optional initial packages on A: drive.
+ */
+async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions = {}): Promise<void> {
+  const {
+    packages: initialPackages = ['cpm22'],
+    addDemoFiles = true,
+    expandPackage
+  } = options;
+  workspaceCount++;
+
+  const windowId = desktop.wm.create({
       title: `Workspace ${workspaceCount}`,
       app: 'system.workspace',
       appName: 'Workspace',
@@ -386,7 +412,7 @@ export function registerWorkspaceManager(desktop: Desktop): void {
           }
         };
 
-        // Drag & drop for zip files (adds as package layer)
+        // Drag & drop for zip files and packages (adds as package layer)
         header.addEventListener('dragover', (e) => {
           e.preventDefault();
           header.classList.add('dragover');
@@ -397,6 +423,22 @@ export function registerWorkspaceManager(desktop: Desktop): void {
         header.addEventListener('drop', async (e) => {
           e.preventDefault();
           header.classList.remove('dragover');
+
+          // Check for package ID from Programs menu
+          const packageId = e.dataTransfer?.getData('application/x-cpm-package');
+          if (packageId) {
+            log(`Loading ${packageId}...`);
+            try {
+              await workspace.addPackageToDrive(config.letter, packageId);
+              updateFileTree();
+              log(`Added ${packageId} to ${config.letter}:`);
+            } catch (err) {
+              log(`Error: ${err instanceof Error ? err.message : err}`);
+            }
+            return;
+          }
+
+          // Check for zip file
           const file = e.dataTransfer?.files[0];
           if (file && file.name.endsWith('.zip')) {
             await handleDroppedZip(config.letter, file);
@@ -1255,10 +1297,11 @@ export function registerWorkspaceManager(desktop: Desktop): void {
       log('Loading packages...');
 
       // Configure default drives - cpm22 includes CCP.COM shell and system utilities
-      await workspace.configureDrive({ letter: 'A', packages: ['cpm22'], writable: true });
+      await workspace.configureDrive({ letter: 'A', packages: initialPackages, writable: true });
       await workspace.configureDrive({ letter: 'B', packages: [], writable: true });
 
-      // Create a sample file in B: (scratch drive)
+      // Create sample files in B: only when opening default workspace (not from Programs menu)
+      if (addDemoFiles) {
       // This template demonstrates I/O, math, and conditional logic in 8080 assembly
       workspace.writeFile('B', 'HELLO.ASM', new TextEncoder().encode(
         '; 8080 Assembly - Add two single digits\r\n' +
@@ -1526,22 +1569,37 @@ export function registerWorkspaceManager(desktop: Desktop): void {
         '\r\n' +
         '        END     START\r\n\x1A'
       ));
+      } // end if (addDemoFiles)
 
-      // Set up initial expansion state for first-time user experience:
-      // - A: expanded with [manifest] showing MANIFEST.MF (shows what tools are available)
-      // - B: expanded with [files] showing HELLO.ASM (the file they'll work with)
+      // Set up initial expansion state
       expandedDrives.add('A');
-      expandedLayers.add('A:[manifest]');
-      expandedDrives.add('B');
-      expandedLayers.add('B:[files]');
+      if (expandPackage) {
+        // Expand the specific package that was selected from Programs menu
+        expandedLayers.add(`A:${expandPackage}`);
+      } else if (addDemoFiles) {
+        // Default workspace: show manifest on A: and demo files on B:
+        expandedLayers.add('A:[manifest]');
+        expandedDrives.add('B');
+        expandedLayers.add('B:[files]');
+      }
 
       updateFileTree();
       log('Ready');
 
-      // Open the sample file - users see working code immediately
-      openFile('B', 'HELLO.ASM');
+      // Open the sample file only when demo files are present
+      if (addDemoFiles) {
+        openFile('B', 'HELLO.ASM');
+      }
     } catch (err) {
       log(`Init error: ${err instanceof Error ? err.message : err}`);
     }
+}
+
+/**
+ * Register Workspace Manager with the desktop taskbar.
+ */
+export function registerWorkspaceManager(desktop: Desktop): void {
+  desktop.taskbar.addItem('background:#1e1e1e;border:1px solid #4fc3f7', 'Workspace', async () => {
+    await createWorkspaceWindow(desktop, { packages: ['cpm22'] });
   });
 }

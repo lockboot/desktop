@@ -228,6 +228,14 @@
   margin: 4px 8px;
 }
 
+.theme-classic #programs-menu,
+.theme-classic #programs-menu .submenu {
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+}
+
 .theme-classic #task-switcher {
   background: transparent;
   border: none;

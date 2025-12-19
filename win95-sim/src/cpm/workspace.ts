@@ -132,6 +132,8 @@ export interface PackageInfo {
   name: string;
   /** Description */
   description: string;
+  /** Package type from meta.type (e.g., "compiler", "game", "shell") */
+  type?: string;
 }
 
 /**

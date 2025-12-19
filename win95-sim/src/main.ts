@@ -8,7 +8,7 @@ import { Desktop, WindowManager, Taskbar } from './desktop';
 import type { WindowConfig, AppWindowConfig } from './desktop';
 import { MessageBus, ContextStore } from './messaging';
 import type { AppMessage } from './messaging';
-import { registerDemoApps, registerCpmTerminal, registerWorkspaceManager, registerThemePicker } from './apps';
+import { registerDemoApps, registerWorkspaceManager, registerThemePicker, registerProgramsMenu } from './apps';
 
 // Register custom elements
 registerComponents();
@@ -18,9 +18,9 @@ const desktop = new Desktop(document.getElementById('app')!);
 
 // Register all applications
 registerDemoApps(desktop);
-registerCpmTerminal(desktop);
 registerWorkspaceManager(desktop);
 registerThemePicker(desktop);
+registerProgramsMenu(desktop);
 
 // Export for external use
 export { desktop, Desktop, WindowManager, Taskbar, MessageBus, ContextStore };

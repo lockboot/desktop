@@ -14,7 +14,6 @@
   ],
   "meta": {
     "type": "shell",
-    "alwaysLoad": true,
     "shell": "XCCP.COM"
   }
 }

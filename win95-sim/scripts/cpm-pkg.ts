@@ -459,7 +459,7 @@ async function buildPackage(pkgName: string): Promise<boolean> {
 /** Generate packages.json index file */
 function generatePackagesIndex(): void {
   const packages = getPackages();
-  const index: { packages: { id: string; name: string; description: string }[] } = {
+  const index: { packages: { id: string; name: string; description: string; type?: string }[] } = {
     packages: []
   };
 
@@ -470,7 +470,8 @@ function generatePackagesIndex(): void {
       index.packages.push({
         id: outputName,
         name: manifest.name,
-        description: manifest.description || ''
+        description: manifest.description || '',
+        type: manifest.meta?.type as string | undefined
       });
     }
   }

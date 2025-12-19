@@ -108,7 +108,8 @@ npm run pkg:validate  # Validate manifest files
 │  CP/M Layer                                              │
 │  ├── CpmEmulator (Z80 CPU + BDOS/BIOS)                  │
 │  ├── VirtualFS (in-memory filesystem)                   │
-│  └── Package Loader (ZIP extraction)                    │
+│  ├── Package Loader (ZIP extraction)                    │
+│  └── Interactive Scripts (wait/send automation)         │
 ├─────────────────────────────────────────────────────────┤
 │  Z80 Emulator Core                                       │
 │  ├── 64KB address space                                 │

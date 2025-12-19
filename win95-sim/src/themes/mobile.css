@@ -231,7 +231,9 @@
 
 /* Menus */
 .theme-mobile #task-switcher-menu,
-.theme-mobile #app-submenu {
+.theme-mobile #app-submenu,
+.theme-mobile #programs-menu,
+.theme-mobile #programs-menu .submenu {
   bottom: var(--taskbar-height);
   top: auto;
   right: 8px;
@@ -241,6 +243,11 @@
   border-radius: 0;
   padding: 4px;
   box-shadow: 0 0 20px var(--green-glow);
+}
+
+.theme-mobile #programs-menu .submenu {
+  bottom: auto;
+  top: 0;
 }
 
 .theme-mobile .task-switcher-app {
