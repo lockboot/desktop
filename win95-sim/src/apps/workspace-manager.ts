@@ -110,6 +110,9 @@ const STYLES = `
   .ws-modal p { color: #000; }
   .ws-modal select, .ws-modal input { width: 100%; padding: 2px; background: #fff; border-width: 2px; border-style: solid; border-color: #808080 #fff #fff #808080; color: #000; font-size: 11px; margin-top: 2px; box-sizing: border-box; font-family: inherit; }
   .ws-modal-btns { display: flex; gap: 4px; margin-top: 12px; justify-content: center; }
+  .ws-hex-viewer { flex: 1; padding: 4px; background: #fff; color: #000; border: none; outline: none; font-family: "Fixedsys", "Courier New", monospace; font-size: 11px; line-height: 1.4; overflow: auto; margin: 0; white-space: pre; }
+  .ws-hex-offset { color: #808080; }
+  .ws-hex-ascii { color: #008000; }
 `;
 
 interface WorkspaceOptions {
@@ -170,7 +173,16 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
 
     // State
     let currentFile: { drive: string; name: string } | null = null;
+    let currentFileBytes: Uint8Array | null = null;
     let isDirty = false;
+
+    // Binary file extensions (show hex viewer instead of text editor)
+    const BINARY_EXTENSIONS = new Set(['COM', 'REL', 'OBJ', 'LIB', 'OVL', 'SYS', 'SPR', 'PRL']);
+
+    function isBinaryFile(filename: string): boolean {
+      const ext = filename.split('.').pop()?.toUpperCase() || '';
+      return BINARY_EXTENSIONS.has(ext);
+    }
 
     // Auto-refresh file tree when files change (debounced)
     let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -261,6 +273,12 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
     editor.disabled = true;
     editorArea.appendChild(editor);
 
+    // Hex viewer for binary files
+    const hexViewer = document.createElement('pre');
+    hexViewer.className = 'ws-hex-viewer';
+    hexViewer.style.display = 'none';
+    editorArea.appendChild(hexViewer);
+
     // Bottom toolbar: spacer + compiler dropdown + B + R buttons (right-aligned)
     // Hidden by default until a file with matching tools is selected
     const buildToolbar = document.createElement('div');
@@ -319,6 +337,67 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
       const mb = bytes / (1024 * 1024);
       return mb >= 10 ? `${Math.round(mb)}mb` : `${mb.toFixed(1)}mb`;
     }
+
+    function formatHexDump(data: Uint8Array, bytesPerLine: number): string {
+      const lines: string[] = [];
+      const grouping = 2; // Always group by 2 bytes
+
+      for (let offset = 0; offset < data.length; offset += bytesPerLine) {
+        const chunk = data.slice(offset, offset + bytesPerLine);
+
+        // Offset column (8 hex digits)
+        const offsetStr = offset.toString(16).padStart(8, '0').toUpperCase();
+
+        // Hex column with grouping
+        const hexParts: string[] = [];
+        for (let i = 0; i < bytesPerLine; i += grouping) {
+          const group: string[] = [];
+          for (let j = 0; j < grouping && i + j < chunk.length; j++) {
+            group.push(chunk[i + j].toString(16).padStart(2, '0').toUpperCase());
+          }
+          if (group.length > 0) {
+            hexParts.push(group.join(''));
+          }
+        }
+        // Pad hex column to consistent width
+        const hexStr = hexParts.join(' ').padEnd(bytesPerLine * 2 + (bytesPerLine / grouping - 1), ' ');
+
+        // ASCII column
+        const asciiChars: string[] = [];
+        for (const byte of chunk) {
+          asciiChars.push(byte >= 0x20 && byte < 0x7F ? String.fromCharCode(byte) : '.');
+        }
+        const asciiStr = asciiChars.join('').padEnd(bytesPerLine, ' ');
+
+        lines.push(`<span class="ws-hex-offset">${offsetStr}</span>  ${hexStr}  <span class="ws-hex-ascii">|${asciiStr}|</span>`);
+      }
+
+      return lines.join('\n');
+    }
+
+    /** Calculate optimal bytes per line based on container width */
+    function calcBytesPerLine(width: number): number {
+      // Approximate char width for 11px monospace font
+      const charWidth = 7;
+      // Format: "OFFSET  XX XX XX XX  |ASCII|"
+      // offset=8, gap=2, each byte=2hex+0.5space, gap=2, ascii=1+2pipes
+      // For N bytes: 8 + 2 + N*2.5 + 2 + N + 2 = 14 + 3.5N
+      const available = Math.floor(width / charWidth);
+      const maxBytes = Math.floor((available - 14) / 3.5);
+      // Round down to nearest power of 2, min 4, max 32
+      const pow2 = Math.pow(2, Math.floor(Math.log2(Math.max(4, maxBytes))));
+      return Math.min(32, Math.max(4, pow2));
+    }
+
+    function updateHexView(): void {
+      if (!currentFileBytes || hexViewer.style.display === 'none') return;
+      const bytesPerLine = calcBytesPerLine(hexViewer.clientWidth);
+      hexViewer.innerHTML = formatHexDump(currentFileBytes, bytesPerLine);
+    }
+
+    // Resize observer for hex viewer
+    const hexResizeObserver = new ResizeObserver(() => updateHexView());
+    hexResizeObserver.observe(hexViewer);
 
     function updateFileTree(): void {
       fileTree.innerHTML = '';
@@ -691,15 +770,28 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
       }
 
       currentFile = { drive, name };
+      currentFileBytes = content;
       isDirty = false;
 
-      // Decode content
-      const text = new TextDecoder().decode(content);
-      // Remove CP/M EOF marker and convert line endings
-      editor.value = text.replace(/\x1A.*$/, '').replace(/\r\n/g, '\n');
-      editor.disabled = !workspace.isDriveWritable(drive);
+      const isBinary = isBinaryFile(name);
 
-      editorPath.textContent = `${drive}:${name}`;
+      if (isBinary) {
+        // Binary mode: show hex viewer
+        editor.style.display = 'none';
+        hexViewer.style.display = 'block';
+        updateHexView();
+        editorPath.textContent = `${drive}:${name} [hex]`;
+      } else {
+        // Text mode: show editor
+        hexViewer.style.display = 'none';
+        editor.style.display = 'block';
+        // Decode content
+        const text = new TextDecoder().decode(content);
+        // Remove CP/M EOF marker and convert line endings
+        editor.value = text.replace(/\x1A.*$/, '').replace(/\r\n/g, '\n');
+        editor.disabled = !workspace.isDriveWritable(drive);
+        editorPath.textContent = `${drive}:${name}`;
+      }
       updateToolDropdown(name);
       updateFileTree();
       log(`Opened ${drive}:${name}`);

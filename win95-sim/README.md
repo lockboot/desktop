@@ -1,6 +1,6 @@
 # OS/402 Desktop
 
-Write 8080 assembly. Compile it to a `.COM` binary. Run it as a CGI program that renders live HTML—all inside your browser, on a Z80 emulator running CP/M 2.2.
+Write 8080 assembly. Compile it to a `.COM` binary. Run it as a CGI program that renders HTML - all inside your browser, on a Z80 emulator running CP/M 2.2.
 
 ![Demo](./demo.gif)
 
@@ -18,17 +18,17 @@ That's `HTML.ASM` being assembled, outputting `<h1>Hello</h1>` through BDOS cons
 ### Desktop Environment
 - **Window Manager** — Draggable, resizable windows with minimize/maximize/close
 - **Taskbar** — Application launcher with running window indicators
-- **Multi-window** — Run multiple workspaces and applications simultaneously
+- **Multi-window** — Run multiple workspaces and applications simultaneously (it's like having a whole cloud in your computer!)
 
 ### CP/M 2.2 Emulation
 - **Z80/8080 CPU** — Cycle-accurate emulation with full instruction set
 - **BDOS & BIOS** — Complete CP/M system calls (file I/O, console, disk operations)
 - **Virtual Filesystem** — Multiple drives (A:, B:, C:...) with drag-and-drop file upload
-- **Terminal** — Interactive CP/M command line with XCCP shell enhancements
+- **Terminal** — Interactive CP/M command line with happy green letters
 
 ### Development Workspace
-- **Integrated Editor** — Syntax-aware text editing for assembly, Pascal, C, BASIC
-- **File Browser** — Navigate drives, create/rename/delete files
+- **Integrated Editor** — Text editing with hex viewer for binary files (.COM, .REL, etc.)
+- **File Browser** — Navigate drives, create and delete files
 - **Build System** — One-click compile with automatic tool detection
 - **Multiple Languages**:
   - 8080/Z80 Assembly (ASM.COM, Z80MR, ZASM)
