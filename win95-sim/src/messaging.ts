@@ -150,9 +150,62 @@ export class MessageBus {
     }
   }
 
+  // Resolve named shortcuts in patterns
+  // @self     → sender's full address
+  // @siblings → other instances of same app (same parent.*)
+  // @app      → app namespace (parent of window id)
+  // @cousins  → sibling apps (grandparent.*)
+  // @workspace → workspace root (first 2 parts for workspace.N structure)
+  resolvePattern(fromAddress: string, pattern: string): string {
+    const parts = fromAddress.split('.');
+
+    // Helper to escape for regex
+    const esc = (s: string) => s.replace(/\./g, '\\.');
+
+    // @self → exact match on sender
+    if (pattern === '@self') {
+      return esc(fromAddress);
+    }
+
+    // @app → parent namespace (remove window id)
+    if (pattern === '@app') {
+      return esc(parts.slice(0, -1).join('.'));
+    }
+
+    // @siblings → same app, any window (parent.*)
+    if (pattern === '@siblings') {
+      const appPath = parts.slice(0, -1).join('.');
+      return esc(appPath) + '\\..*';
+    }
+
+    // @cousins → sibling apps (grandparent.*)
+    if (pattern === '@cousins') {
+      const grandparentPath = parts.slice(0, -2).join('.');
+      return esc(grandparentPath) + '\\..*';
+    }
+
+    // @workspace → workspace root (assumes workspace.N.* structure)
+    if (pattern === '@workspace') {
+      // Find workspace root - typically first 2 parts (workspace.3)
+      // But could be deeper, so we look for common patterns
+      const workspacePath = parts.slice(0, 2).join('.');
+      return esc(workspacePath) + '\\..*';
+    }
+
+    // @parent → immediate parent namespace
+    if (pattern === '@parent') {
+      return esc(parts.slice(0, -1).join('.'));
+    }
+
+    // No shortcut, return as-is
+    return pattern;
+  }
+
   // Send to all windows matching the regex pattern
   send(msg: AppMessage, excludeAddress?: string) {
-    const pattern = new RegExp(`^${msg.to}$`);
+    // Resolve shortcuts if sender address is known
+    const resolvedTo = msg.from ? this.resolvePattern(msg.from, msg.to) : msg.to;
+    const pattern = new RegExp(`^${resolvedTo}$`);
     this.windows.forEach((win, address) => {
       if (address !== excludeAddress && pattern.test(address) && win.iframe.contentWindow) {
         win.iframe.contentWindow.postMessage(msg, win.origin);

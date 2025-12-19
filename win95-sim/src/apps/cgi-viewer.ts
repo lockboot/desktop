@@ -128,10 +128,11 @@ export interface CgiViewerOptions {
   programDrive: string;
   programName: string;
   initialQueryString?: string;
+  address?: string;  // Namespace address for messaging (e.g., workspace.3.cgi.b.hello)
 }
 
 export async function openCgiViewer(options: CgiViewerOptions): Promise<void> {
-  const { desktop, workspace, programDrive, programName, initialQueryString = '' } = options;
+  const { desktop, workspace, programDrive, programName, initialQueryString = '', address } = options;
 
   // Read the .COM binary
   const binaryData = workspace.readFile(programDrive, programName);
@@ -171,9 +172,45 @@ export async function openCgiViewer(options: CgiViewerOptions): Promise<void> {
   iframe.style.cssText = 'flex:1;border:none;background:#c0c0c0;';
   iframe.sandbox.add('allow-same-origin'); // Access contentDocument
   iframe.sandbox.add('allow-forms'); // Allow form submit events to fire
+  iframe.sandbox.add('allow-scripts'); // Allow JavaScript for messaging
   container.appendChild(iframe);
 
   content.appendChild(container);
+
+  // Register with MessageBus for cross-window messaging
+  if (address) {
+    // Create an IFrameLike wrapper for the bus
+    const iframeLike = {
+      contentWindow: {
+        postMessage: (msg: unknown) => {
+          iframe.contentWindow?.postMessage(msg, '*');
+        }
+      }
+    };
+    desktop.bus.register(address, iframeLike, location.origin);
+
+    // Listen for messages from iframe and route through bus
+    const messageHandler = (e: MessageEvent) => {
+      if (e.source !== iframe.contentWindow) return;
+      const msg = e.data;
+      if (!msg || typeof msg !== 'object' || !msg.type) return;
+
+      // Add from address and route through bus
+      const fullMsg = { ...msg, from: address };
+      desktop.bus.send(fullMsg, address);  // Send to others, exclude self
+      desktop.bus.onMessage?.(fullMsg);    // Notify bus handler
+    };
+    window.addEventListener('message', messageHandler);
+
+    // Unregister when window closes
+    const checkWindowClosed = setInterval(() => {
+      if (!isWindowOpen()) {
+        clearInterval(checkWindowClosed);
+        window.removeEventListener('message', messageHandler);
+        desktop.bus.unregister(address);
+      }
+    }, 500);
+  }
 
   // Current environment state
   let currentEnv: CgiEnv = {
@@ -297,7 +334,7 @@ export async function openCgiViewer(options: CgiViewerOptions): Promise<void> {
       // Set up form/link interception and update title after iframe loads
       iframe.onload = () => {
         updateTitleFromIframe();
-        setupInterception(iframe, runCgi);
+        setupInterception(iframe, runCgi, address);
       };
 
     } catch (err) {
@@ -310,7 +347,8 @@ export async function openCgiViewer(options: CgiViewerOptions): Promise<void> {
   /** Set up form and link interception in iframe */
   function setupInterception(
     iframe: HTMLIFrameElement,
-    runCgiFn: (env: CgiEnv, postBody?: string) => Promise<void>
+    runCgiFn: (env: CgiEnv, postBody?: string) => Promise<void>,
+    fromAddress?: string
   ): void {
     const doc = iframe.contentDocument;
     if (!doc) return;
@@ -373,6 +411,7 @@ export async function openCgiViewer(options: CgiViewerOptions): Promise<void> {
         });
       });
     });
+
   }
 
   // Initial run

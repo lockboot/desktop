@@ -39,6 +39,7 @@ const BUILTIN_ACTIONS: PackageAction[] = [
 ];
 
 let workspaceCount = 0;
+let cgiWindowCount = 0;
 
 // CSS styles for the workspace manager - Win3.11/Win95 retro theme
 const STYLES = `
@@ -1209,13 +1210,19 @@ export function registerWorkspaceManager(desktop: Desktop): void {
 
       const { drive, name } = currentFile;
 
+      // Build namespace address for messaging
+      const baseName = name.replace(/\.[^.]+$/, '').toLowerCase();
+      cgiWindowCount++;
+      const cgiAddress = `workspace.${workspaceCount}.cgi.${drive.toLowerCase()}.${baseName}.win-${cgiWindowCount}`;
+
       // Import and open CGI viewer
       const { openCgiViewer } = await import('./cgi-viewer');
       await openCgiViewer({
         desktop,
         workspace,
         programDrive: drive,
-        programName: name
+        programName: name,
+        address: cgiAddress
       });
 
       log(`Opened CGI viewer for ${name}`);
@@ -1494,9 +1501,23 @@ export function registerWorkspaceManager(desktop: Desktop): void {
         '        DB      \'Msg: <input name=\"msg\"> \'\r\n' +
         '        DB      \'<button type=\"submit\">POST</button>\'\r\n' +
         '        DB      \'</form>\',13,10\r\n' +
+        '        DB      \'<h2>Messaging</h2>\'\r\n' +
+        '        DB      \'<button id=\"send\">Send to @siblings</button>\'\r\n' +
+        '        DB      \'<ul id=\"log\"></ul>\',13,10\r\n' +
+        '        DB      \'<script>\',13,10\r\n' +
+        '        DB      \'var s=document.getElementById(\"send\");\',13,10\r\n' +
+        '        DB      \'s.onclick=function(){parent.postMessage(\',13,10\r\n' +
+        '        DB      \'{type:\"ping\",to:\"@siblings\",payload:{t:Date.now()}}\',13,10\r\n' +
+        '        DB      \',\"*\");};\',13,10\r\n' +
+        '        DB      \'window.addEventListener(\"message\",function(e){\',13,10\r\n' +
+        '        DB      \'var li=document.createElement(\"li\");\',13,10\r\n' +
+        '        DB      \'li.textContent=JSON.stringify(e.data);\',13,10\r\n' +
+        '        DB      \'document.getElementById(\"log\").appendChild(li);\',13,10\r\n' +
+        '        DB      \'});\',13,10\r\n' +
+        '        DB      \'</script>\',13,10\r\n' +
         '        DB      \'<p><a href=\"?p=1\">Link 1</a> | \'\r\n' +
         '        DB      \'<a href=\"?p=2\">Link 2</a></p>\',13,10\r\n' +
-        '        DB      \'<hr><i>CP/M 2.2</i></body></html>\',\'$\'\r\n' +
+        '        DB      \'<hr><i>Powered by CP/M</i></body></html>\',\'$\'\r\n' +
         '\r\n' +
         'FCB:    DB      0,\'CGI     ENV\'\r\n' +
         '        DS      24\r\n' +

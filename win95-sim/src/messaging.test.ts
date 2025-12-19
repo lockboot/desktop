@@ -161,6 +161,90 @@ describe('MessageBus', () => {
       expect(addresses).toHaveLength(3);
     });
   });
+
+  describe('named shortcuts', () => {
+    it('should resolve @self to exact sender address', () => {
+      const from = 'com.test.appA.main.win-0';
+      const resolved = bus.resolvePattern(from, '@self');
+      expect(resolved).toBe('com\\.test\\.appA\\.main\\.win-0');
+    });
+
+    it('should resolve @app to parent namespace', () => {
+      const from = 'com.test.appA.main.win-0';
+      const resolved = bus.resolvePattern(from, '@app');
+      expect(resolved).toBe('com\\.test\\.appA\\.main');
+    });
+
+    it('should resolve @parent same as @app', () => {
+      const from = 'com.test.appA.main.win-0';
+      const resolved = bus.resolvePattern(from, '@parent');
+      expect(resolved).toBe('com\\.test\\.appA\\.main');
+    });
+
+    it('should resolve @siblings to same app wildcard', () => {
+      const from = 'com.test.appA.main.win-0';
+      const resolved = bus.resolvePattern(from, '@siblings');
+      expect(resolved).toBe('com\\.test\\.appA\\.main\\..*');
+    });
+
+    it('should resolve @cousins to grandparent wildcard', () => {
+      const from = 'com.test.appA.main.win-0';
+      const resolved = bus.resolvePattern(from, '@cousins');
+      expect(resolved).toBe('com\\.test\\.appA\\..*');
+    });
+
+    it('should resolve @workspace to first two parts', () => {
+      const from = 'workspace.3.cgi.b.hello.win-1';
+      const resolved = bus.resolvePattern(from, '@workspace');
+      expect(resolved).toBe('workspace\\.3\\..*');
+    });
+
+    it('should pass through non-shortcuts unchanged', () => {
+      const from = 'com.test.appA.main.win-0';
+      const resolved = bus.resolvePattern(from, 'com\\.other\\..*');
+      expect(resolved).toBe('com\\.other\\..*');
+    });
+
+    it('should route messages using @siblings shortcut', () => {
+      bus.clearSentMessages();
+
+      bus.simulateMessage('com.test.appA.main.win-0', {
+        type: 'ping',
+        to: '@siblings',
+        payload: {}
+      });
+
+      // win-0 is sender (excluded), win-1 should receive
+      expect(iframeA1.messages).toHaveLength(0);
+      expect(iframeA2.messages).toHaveLength(1);
+      expect(iframeA2.messages[0].type).toBe('ping');
+      // appB should not receive
+      expect(iframeB1.messages).toHaveLength(0);
+    });
+
+    it('should route messages using @cousins shortcut', () => {
+      bus.clearSentMessages();
+      iframeA1.messages.length = 0;
+      iframeA2.messages.length = 0;
+      iframeB1.messages.length = 0;
+
+      // Add another window type to appA
+      const iframeA3 = createMockIframe();
+      bus.register('com.test.appA.dialog.win-2', iframeA3, 'http://localhost');
+
+      bus.simulateMessage('com.test.appA.main.win-0', {
+        type: 'update',
+        to: '@cousins',  // should match appA.* (all window types in appA)
+        payload: {}
+      });
+
+      // win-0 excluded, win-1 should receive (same windowType), dialog/win-2 should receive too
+      expect(iframeA1.messages).toHaveLength(0);
+      expect(iframeA2.messages).toHaveLength(1);
+      expect(iframeA3.messages).toHaveLength(1);
+      expect(iframeB1.messages).toHaveLength(0);
+    });
+  });
 });
 
 describe('ContextStore', () => {
