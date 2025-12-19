@@ -17,7 +17,21 @@ const themes: Theme[] = [
   { id: 'theme-mobile', name: 'OLED', icon: 'background: #000; border: 1px solid #333;', emoji: '◐' }
 ];
 
-let currentThemeId = 'theme-nirvana';
+const THEME_STORAGE_KEY = 'os402-theme';
+
+function getSavedTheme(): string {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved && themes.some(t => t.id === saved)) {
+      return saved;
+    }
+  } catch {
+    // localStorage not available
+  }
+  return 'theme-nirvana';
+}
+
+let currentThemeId = getSavedTheme();
 let themePicker: HTMLElement;
 
 function setTheme(themeId: string, desktop: Desktop) {
@@ -29,6 +43,12 @@ function setTheme(themeId: string, desktop: Desktop) {
   currentThemeId = themeId;
   // Store in context
   desktop.context.set('system', { theme: themeId });
+  // Save to localStorage for persistence
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, themeId);
+  } catch {
+    // localStorage not available
+  }
   // Update picker UI if open
   updateThemePicker(desktop);
 }

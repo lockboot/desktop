@@ -262,8 +262,10 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
     editorArea.appendChild(editor);
 
     // Bottom toolbar: spacer + compiler dropdown + B + R buttons (right-aligned)
+    // Hidden by default until a file with matching tools is selected
     const buildToolbar = document.createElement('div');
     buildToolbar.className = 'ws-editor-toolbar';
+    buildToolbar.style.display = 'none';
 
     // Spacer (pushes everything to the right)
     const spacer = document.createElement('span');
@@ -389,6 +391,7 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
               editor.value = '';
               editor.disabled = true;
               editorPath.textContent = 'No file selected';
+              buildToolbar.style.display = 'none';
               isDirty = false;
             }
             workspace.unmount(config.letter);
@@ -554,6 +557,7 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
                       editor.value = '';
                       editor.disabled = true;
                       editorPath.textContent = 'No file selected';
+                      buildToolbar.style.display = 'none';
                     }
                     updateFileTree();
                     log(`Deleted ${config.letter}:${name}`);
@@ -725,12 +729,13 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
       const allActions = [...matchingActions, ...builtinActions];
 
       if (allActions.length === 0) {
-        // No matching tools for this file type
-        toolSelect.innerHTML = '<option value="">No tools</option>';
+        // No matching tools for this file type - hide toolbar
+        buildToolbar.style.display = 'none';
       } else {
         toolSelect.innerHTML = allActions
           .map(a => `<option value="${a.id}">${a.name}</option>`)
           .join('');
+        buildToolbar.style.display = 'flex';
       }
     }
 

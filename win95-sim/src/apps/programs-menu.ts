@@ -177,8 +177,7 @@ async function buildMenuContent(desktop: Desktop): Promise<void> {
 /**
  * Position a submenu relative to its parent item.
  */
-function positionSubmenu(parentItem: HTMLElement, submenu: HTMLElement): void {
-  const parentRect = parentItem.getBoundingClientRect();
+function positionSubmenu(_parentItem: HTMLElement, submenu: HTMLElement): void {
   const menuRect = programsMenu.getBoundingClientRect();
   const desktopEl = document.getElementById('desktop')!;
   const desktopRect = desktopEl.getBoundingClientRect();
