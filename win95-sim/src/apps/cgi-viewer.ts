@@ -334,7 +334,7 @@ export async function openCgiViewer(options: CgiViewerOptions): Promise<void> {
       // Set up form/link interception and update title after iframe loads
       iframe.onload = () => {
         updateTitleFromIframe();
-        setupInterception(iframe, runCgi, address);
+        setupInterception(iframe, runCgi);
       };
 
     } catch (err) {
@@ -347,8 +347,7 @@ export async function openCgiViewer(options: CgiViewerOptions): Promise<void> {
   /** Set up form and link interception in iframe */
   function setupInterception(
     iframe: HTMLIFrameElement,
-    runCgiFn: (env: CgiEnv, postBody?: string) => Promise<void>,
-    fromAddress?: string
+    runCgiFn: (env: CgiEnv, postBody?: string) => Promise<void>
   ): void {
     const doc = iframe.contentDocument;
     if (!doc) return;
