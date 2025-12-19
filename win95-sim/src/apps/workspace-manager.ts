@@ -395,14 +395,22 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
       return Math.min(32, Math.max(4, pow2));
     }
 
+    let lastBytesPerLine = 0;
     function updateHexView(): void {
       if (!currentFileBytes || hexViewer.style.display === 'none') return;
       const bytesPerLine = calcBytesPerLine(hexViewer.clientWidth);
+      // Only re-render if bytes per line changed (prevents duplicate renders)
+      if (bytesPerLine === lastBytesPerLine && hexViewer.innerHTML) return;
+      lastBytesPerLine = bytesPerLine;
       hexViewer.innerHTML = formatHexDump(currentFileBytes, bytesPerLine);
     }
 
-    // Resize observer for hex viewer
-    const hexResizeObserver = new ResizeObserver(() => updateHexView());
+    // Resize observer for hex viewer (debounced)
+    let hexResizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    const hexResizeObserver = new ResizeObserver(() => {
+      if (hexResizeTimeout) clearTimeout(hexResizeTimeout);
+      hexResizeTimeout = setTimeout(updateHexView, 50);
+    });
     hexResizeObserver.observe(hexViewer);
 
     function updateFileTree(): void {
@@ -785,6 +793,7 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
         // Binary mode: show hex viewer
         editor.style.display = 'none';
         hexViewer.style.display = 'block';
+        lastBytesPerLine = 0; // Reset cache for new file
         updateHexView();
         editorPath.textContent = `${drive}:${name} [hex]`;
       } else {
