@@ -1802,15 +1802,16 @@ export async function openDefaultWorkspace(desktop: Desktop): Promise<void> {
 
   // Check for shorthand: #xmas (no = sign means it's a simple package name)
   // This auto-loads the package and runs its demo file
-  const isShorthand = hash && !hash.includes('=');
+  // Default to 'xmas' if no hash specified
+  const isShorthand = !hash || (hash && !hash.includes('='));
 
   let packages: string[];
   let autoRun: { file: string; drive: string } | undefined;
   let expandPackage: string | undefined;
 
   if (isShorthand) {
-    // Shorthand mode: #xmas → load xmas package and auto-run XMAS.ASM
-    const pkgName = hash.toLowerCase();
+    // Shorthand mode: #xmas or empty → load package and auto-run .ASM
+    const pkgName = (hash || 'xmas').toLowerCase();
     packages = ['cpm22', pkgName];
     expandPackage = pkgName;
     // Convention: main file is PKGNAME.ASM (uppercase)
@@ -1818,7 +1819,7 @@ export async function openDefaultWorkspace(desktop: Desktop): Promise<void> {
   } else {
     packages = packagesParam
       ? packagesParam.split(',').map(p => p.trim()).filter(Boolean)
-      : ['cpm22', 'zork'];
+      : ['cpm22', 'xmas'];
     expandPackage = expandParam || undefined;
 
     if (runParam) {
@@ -1834,7 +1835,7 @@ export async function openDefaultWorkspace(desktop: Desktop): Promise<void> {
   const wsContext = await createWorkspaceWindow(desktop, {
     packages,
     expandPackage,
-    addDemoFiles: !isShorthand && !packagesParam // Only add demo files for default workspace
+    addDemoFiles: isShorthand // Add demo files (HTML.ASM CGI example) for shorthand/default mode
   });
 
   // Auto-compile and run if specified
