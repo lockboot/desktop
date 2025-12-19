@@ -8,7 +8,7 @@ import { Desktop, WindowManager, Taskbar } from './desktop';
 import type { WindowConfig, AppWindowConfig } from './desktop';
 import { MessageBus, ContextStore } from './messaging';
 import type { AppMessage } from './messaging';
-import { registerDemoApps, registerWorkspaceManager, registerThemePicker, registerProgramsMenu } from './apps';
+import { registerDemoApps, registerWorkspaceManager, registerThemePicker, registerProgramsMenu, openDefaultWorkspace } from './apps';
 
 // Register custom elements
 registerComponents();
@@ -21,6 +21,9 @@ registerDemoApps(desktop);
 registerWorkspaceManager(desktop);
 registerThemePicker(desktop);
 registerProgramsMenu(desktop);
+
+// Open default workspace on startup
+openDefaultWorkspace(desktop);
 
 // Export for external use
 export { desktop, Desktop, WindowManager, Taskbar, MessageBus, ContextStore };

@@ -1700,3 +1700,10 @@ export function registerWorkspaceManager(desktop: Desktop): void {
     await createWorkspaceWindow(desktop, { packages: ['cpm22'] });
   });
 }
+
+/**
+ * Open a default workspace on startup.
+ */
+export async function openDefaultWorkspace(desktop: Desktop): Promise<void> {
+  await createWorkspaceWindow(desktop, { packages: ['cpm22'] });
+}
