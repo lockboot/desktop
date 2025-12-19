@@ -124,6 +124,11 @@ interface WorkspaceOptions {
   expandPackage?: string;
 }
 
+interface WorkspaceContext {
+  workspace: CpmWorkspace;
+  spawnTerminalWithCommand: (command: string) => Promise<void>;
+}
+
 /**
  * Open a new workspace with a specific package loaded on A: drive.
  * Called from Programs menu to launch packages directly.
@@ -139,8 +144,9 @@ export async function openWorkspaceWithPackage(desktop: Desktop, packageId: stri
 
 /**
  * Create a workspace window with optional initial packages on A: drive.
+ * Returns context for auto-run functionality.
  */
-async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions = {}): Promise<void> {
+async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions = {}): Promise<WorkspaceContext | undefined> {
   const {
     packages: initialPackages = ['cpm22'],
     addDemoFiles = true,
@@ -1689,7 +1695,85 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
       }
     } catch (err) {
       log(`Init error: ${err instanceof Error ? err.message : err}`);
+      return undefined;
     }
+
+    // Helper function to spawn terminal with auto-queued commands
+    async function spawnTerminalWithCommand(command: string): Promise<void> {
+      log('Opening terminal with auto-run...');
+
+      const termWindowId = desktop.wm.create({
+        title: `Workspace ${workspaceCount} Terminal`,
+        app: 'system.cpm',
+        appName: 'CP/M',
+        width: 660,
+        height: 420,
+        icon: 'background:#000;border:1px solid #0f0'
+      });
+
+      const termContent = desktop.wm.getContent(termWindowId);
+      if (!termContent) return;
+
+      const terminal = new Terminal({
+        cols: 80,
+        rows: 24,
+        fontSize: 14,
+        fgColor: '#00ff41',
+        bgColor: '#000000'
+      });
+      termContent.appendChild(terminal.element);
+
+      // Focus handling
+      const termWin = document.getElementById(termWindowId)!;
+      termContent.addEventListener('click', () => terminal.focus());
+      termContent.addEventListener('mousedown', () => terminal.focus());
+      termWin.addEventListener('mousedown', () => requestAnimationFrame(() => terminal.focus()));
+
+      // Show workspace info
+      terminal.writeString('Workspace Terminal\r\n');
+      terminal.writeString('==================\r\n');
+      for (const config of workspace.listDriveConfigs()) {
+        const mode = config.writable ? 'rw' : 'ro';
+        terminal.writeString(`${config.letter}: (${mode}) - ${workspace.listFiles(config.letter).length} files\r\n`);
+      }
+      terminal.writeString('\r\n');
+
+      // Find shell from mounted packages
+      const shellInfo = workspace.findShell();
+      if (!shellInfo) {
+        terminal.writeString('Error: No shell found in mounted packages.\r\n');
+        log('Terminal error: no shell');
+        return;
+      }
+
+      terminal.writeString(`Shell: ${shellInfo.drive}:${shellInfo.filename} from "${shellInfo.packageName}"\r\n`);
+
+      const cpm = workspace.createEmulator(terminal, {
+        shellBinary: shellInfo.binary,
+        shellAddress: shellInfo.loadAddress,
+        onExit: (info: CpmExitInfo) => {
+          terminal.writeString('\r\n');
+          terminal.writeString(`[${info.message}]\r\n`);
+          updateFileTree();
+        }
+      });
+
+      cpm.syscallTrace = false;
+      terminal.focus();
+
+      // Queue the auto-run command after shell starts
+      setTimeout(() => {
+        terminal.queueInputSlow(command, 5);
+      }, 100);
+
+      cpm.run().catch(err => {
+        terminal.writeString(`\r\nError: ${err.message}\r\n`);
+      });
+
+      log('Terminal opened with auto-run');
+    }
+
+    return { workspace, spawnTerminalWithCommand };
 }
 
 /**
@@ -1703,7 +1787,78 @@ export function registerWorkspaceManager(desktop: Desktop): void {
 
 /**
  * Open a default workspace on startup.
+ * Parses URL hash for configuration:
+ *   #packages=cpm22,zork&expand=zork  - full syntax
+ *   #xmas  - shorthand: opens xmas package and auto-compiles/runs XMAS.ASM
+ * Defaults to cpm22 + zork if no hash provided.
  */
 export async function openDefaultWorkspace(desktop: Desktop): Promise<void> {
-  await createWorkspaceWindow(desktop, { packages: ['cpm22'] });
+  const hash = window.location.hash.slice(1); // Remove #
+  const params = new URLSearchParams(hash);
+
+  const packagesParam = params.get('packages');
+  const expandParam = params.get('expand');
+  const runParam = params.get('run'); // Auto-run file (e.g., run=XMAS.ASM)
+
+  // Check for shorthand: #xmas (no = sign means it's a simple package name)
+  // This auto-loads the package and runs its demo file
+  const isShorthand = hash && !hash.includes('=');
+
+  let packages: string[];
+  let autoRun: { file: string; drive: string } | undefined;
+  let expandPackage: string | undefined;
+
+  if (isShorthand) {
+    // Shorthand mode: #xmas → load xmas package and auto-run XMAS.ASM
+    const pkgName = hash.toLowerCase();
+    packages = ['cpm22', pkgName];
+    expandPackage = pkgName;
+    // Convention: main file is PKGNAME.ASM (uppercase)
+    autoRun = { file: pkgName.toUpperCase() + '.ASM', drive: 'A' };
+  } else {
+    packages = packagesParam
+      ? packagesParam.split(',').map(p => p.trim()).filter(Boolean)
+      : ['cpm22', 'zork'];
+    expandPackage = expandParam || undefined;
+
+    if (runParam) {
+      autoRun = { file: runParam.toUpperCase(), drive: 'A' };
+    }
+  }
+
+  // Always ensure cpm22 is included as base
+  if (!packages.includes('cpm22')) {
+    packages.unshift('cpm22');
+  }
+
+  const wsContext = await createWorkspaceWindow(desktop, {
+    packages,
+    expandPackage,
+    addDemoFiles: !isShorthand && !packagesParam // Only add demo files for default workspace
+  });
+
+  // Auto-compile and run if specified
+  if (autoRun && wsContext) {
+    const { workspace, spawnTerminalWithCommand } = wsContext;
+
+    // Check if the source file exists
+    const sourceFile = workspace.readFile(autoRun.drive, autoRun.file);
+
+    if (sourceFile) {
+      // Get actions for this file type
+      const actions = workspace.getActionsForFile(autoRun.file);
+      const asmAction = actions.find(a => a.id === 'asm' || a.patterns?.some(p => p.endsWith('.ASM')));
+
+      if (asmAction?.submit) {
+        // Build command from action template
+        const baseName = autoRun.file.replace(/\.[^.]+$/, '');
+        const cmd = asmAction.submit
+          .replace(/\{name\}/g, baseName)
+          .replace(/\{drive\}/g, autoRun.drive);
+
+        // Spawn terminal and queue compile+run commands
+        await spawnTerminalWithCommand(cmd);
+      }
+    }
+  }
 }

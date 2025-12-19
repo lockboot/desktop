@@ -1,0 +1,14 @@
+{
+  "id": "xmas",
+  "name": "Christmas Demo",
+  "version": "2024.12",
+  "description": "Sine wave Christmas tree - festive greetings from CP/M",
+  "outputDir": "xmas",
+  "files": [
+    { "src": "XMAS.ASM" },
+    { "src": "READ.ME", "required": false }
+  ],
+  "meta": {
+    "type": "demo"
+  }
+}
