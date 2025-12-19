@@ -1835,7 +1835,7 @@ export async function openDefaultWorkspace(desktop: Desktop): Promise<void> {
   const wsContext = await createWorkspaceWindow(desktop, {
     packages,
     expandPackage,
-    addDemoFiles: isShorthand // Add demo files (HTML.ASM CGI example) for shorthand/default mode
+    addDemoFiles: !!isShorthand // Add demo files (HTML.ASM CGI example) for shorthand/default mode
   });
 
   // Auto-compile and run if specified
