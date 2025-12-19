@@ -1,12 +1,17 @@
 # OS/402 Desktop
 
-A workplace-centric neo-retro desktop environment running a fully functional Z80 CP/M 2.2 operating system in the browser with rapid GUI application development.
+Write 8080 assembly. Compile it to a `.COM` binary. Run it as a CGI program that renders live HTML—all inside your browser, on a Z80 emulator running CP/M 2.2.
 
- ![Demo](./demo.gif)  
+![Demo](./demo.gif)
 
-## Overview
+That's `HTML.ASM` being assembled, outputting `<h1>Hello</h1>` through BDOS console calls, parsed and rendered in a sandboxed iframe. Forty-five years of computing history, running at 4MHz, building fully-interactive web pages - the 'next generation' ecosystem.
 
-Win95-Sim combines the nostalgia of Windows 95's visual design with the historic CP/M operating system, creating a unique retro-computing experience. Write 8080 assembly, compile Pascal and C programs, and build CGI web applications—all running in an emulated Z80 processor inside your browser.
+## Explore
+
+- [`packages/`](./packages/) — Turbo Pascal, BDS C, assemblers, and how to create your own
+- [`src/cpm/`](./src/cpm/) — Z80 emulator, BDOS/BIOS implementation, virtual filesystem
+- [`src/apps/`](./src/apps/) — Workspace IDE, CGI viewer, programs menu
+- [`src/themes/`](./src/themes/) — Nirvana (Win95), Cupertino (Mac), OLED (mobile)
 
 ## Features
 
@@ -84,8 +89,6 @@ npm run pkg:list      # List available packages
 npm run pkg:build     # Build all packages to public/packages/
 npm run pkg:validate  # Validate manifest files
 ```
-
-<!-- TODO: Screenshot of workspace with CGI app -->
 
 ---
 
@@ -250,18 +253,6 @@ npm test
 # Production build
 npm run build
 ```
-
----
-
-## Screenshots
-
-<!-- TODO: Add screenshots showing:
-  1. Desktop with multiple windows
-  2. Workspace IDE with assembly code
-  3. CGI viewer rendering HTML from CP/M
-  4. Terminal running CP/M commands
-  5. Cross-window messaging demo
--->
 
 ---
 

@@ -197,7 +197,16 @@
   padding: 4px;
 }
 
-.theme-mobile .menu-item {
+/* Generic menu styles - applies to all menus and submenus */
+.theme-mobile .menu {
+  background: #000;
+  border: 1px solid var(--green);
+  border-radius: 0;
+  padding: 4px;
+  box-shadow: 0 0 20px var(--green-glow);
+}
+
+.theme-mobile .menu .menu-item {
   padding: 12px 16px;
   border-radius: 0;
   color: var(--green);
@@ -208,17 +217,17 @@
   border: 1px solid transparent;
 }
 
-.theme-mobile .menu-item:hover {
-  background: var(--green-dim);
-  color: #000;
-}
-
-.theme-mobile .menu-item:active {
+.theme-mobile .menu .menu-item:hover {
   background: var(--green);
   color: #000;
 }
 
-.theme-mobile .menu-item .icon {
+.theme-mobile .menu .menu-item:active {
+  background: var(--green);
+  color: #000;
+}
+
+.theme-mobile .menu .menu-item .icon {
   display: none;
 }
 
@@ -229,25 +238,15 @@
   margin: 4px 8px;
 }
 
-/* Menus */
-.theme-mobile #task-switcher-menu,
-.theme-mobile #app-submenu,
-.theme-mobile #programs-menu,
-.theme-mobile #programs-menu .submenu {
-  bottom: var(--taskbar-height);
-  top: auto;
-  right: 8px;
-  left: auto;
+/* Submenu styling - explicit to override ID-based rules */
+.theme-mobile .submenu {
   background: #000;
   border: 1px solid var(--green);
   border-radius: 0;
-  padding: 4px;
   box-shadow: 0 0 20px var(--green-glow);
-}
-
-.theme-mobile #programs-menu .submenu {
   bottom: auto;
   top: 0;
+  margin-left: 2px;
 }
 
 .theme-mobile .task-switcher-app {

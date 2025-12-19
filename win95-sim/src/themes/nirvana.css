@@ -165,12 +165,22 @@
   color: #c0c0c0;
 }
 
-.theme-nirvana .menu-item:hover {
-  background: #000080;
-  color: #ffffff;
+/* Generic menu styles - applies to all menus and submenus */
+.theme-nirvana .menu {
+  background: #c0c0c0;
+  border: 2px outset #ffffff;
 }
 
-.theme-nirvana .menu-item .icon {
+.theme-nirvana .menu .menu-item {
+  color: #000;
+}
+
+.theme-nirvana .menu .menu-item:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.theme-nirvana .menu .menu-item .icon {
   background: #808080;
 }
 
@@ -179,10 +189,11 @@
   border-bottom: 1px solid #ffffff;
 }
 
-.theme-nirvana #programs-menu,
-.theme-nirvana #programs-menu .submenu {
+/* Submenu styling - explicit to override ID-based rules */
+.theme-nirvana .submenu {
   background: #c0c0c0;
   border: 2px outset #ffffff;
+  margin-left: 2px;
 }
 
 .theme-nirvana .window {
