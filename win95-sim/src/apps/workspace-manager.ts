@@ -15,12 +15,28 @@ import { Terminal } from '../cpm';
 import type { CpmExitInfo } from '../cpm';
 import {
   CpmWorkspace,
-  MergedWorkspaceFS,
-  PackageDriveFS,
   fetchAvailablePackages,
-  loadPackageFromUrl,
+  actionMatchesFile,
 } from '../cpm/workspace';
 import type { PackageAction } from '../cpm/workspace';
+
+/** Built-in actions for executable files (.COM, .CGI) */
+const BUILTIN_ACTIONS: PackageAction[] = [
+  {
+    id: '__builtin:run-terminal',
+    name: 'Run in Terminal',
+    command: '',
+    patterns: ['*.COM', '*.CGI'],
+    package: '__builtin'
+  },
+  {
+    id: '__builtin:run-cgi',
+    name: 'Run as CGI',
+    command: '',
+    patterns: ['*.COM', '*.CGI'],
+    package: '__builtin'
+  }
+];
 
 let workspaceCount = 0;
 
@@ -129,6 +145,17 @@ export function registerWorkspaceManager(desktop: Desktop): void {
     let currentFile: { drive: string; name: string } | null = null;
     let isDirty = false;
 
+    // Auto-refresh file tree when files change (debounced)
+    let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+    workspace.setOnFileChange(() => {
+      // Debounce - wait 100ms after last change before refreshing
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => {
+        updateFileTree();
+        refreshTimeout = null;
+      }, 100);
+    });
+
     // Track which drives/layers are expanded (default: collapsed)
     const expandedDrives = new Set<string>();
     const expandedLayers = new Set<string>(); // "A:pkgname" format
@@ -222,21 +249,22 @@ export function registerWorkspaceManager(desktop: Desktop): void {
     toolSelect.title = 'Build tool';
     buildToolbar.appendChild(toolSelect);
 
-    // Build button - runs build in terminal
+    // Build/Run button - dispatches based on selected action
     const buildBtn = document.createElement('button');
     buildBtn.className = 'ws-btn';
     buildBtn.textContent = '▶';
-    buildBtn.title = 'Build (opens terminal)';
-    buildBtn.onclick = () => buildInTerminal();
+    buildBtn.title = 'Run action';
+    buildBtn.onclick = () => {
+      const action = getSelectedAction();
+      if (action?.id === '__builtin:run-terminal') {
+        runInTerminal();
+      } else if (action?.id === '__builtin:run-cgi') {
+        runAsCgi();
+      } else {
+        buildInTerminal();
+      }
+    };
     buildToolbar.appendChild(buildBtn);
-
-    // Term button - opens shell with tool packages
-    const toolTermBtn = document.createElement('button');
-    toolTermBtn.className = 'ws-btn';
-    toolTermBtn.textContent = 'T';
-    toolTermBtn.title = 'Open terminal with tool';
-    toolTermBtn.onclick = () => openToolTerminal();
-    buildToolbar.appendChild(toolTermBtn);
 
     editorArea.appendChild(buildToolbar);
 
@@ -635,11 +663,29 @@ export function registerWorkspaceManager(desktop: Desktop): void {
       // Get actions that match this file from mounted packages
       const matchingActions = workspace.getActionsForFile(filename);
 
-      if (matchingActions.length === 0) {
+      // Add built-in actions that match, ordered by file extension preference
+      const builtinActions: PackageAction[] = [];
+      const isCgi = filename.toUpperCase().endsWith('.CGI');
+
+      // For .CGI files, put "Run as CGI" first; for .COM, put "Run in Terminal" first
+      const orderedBuiltins = isCgi
+        ? BUILTIN_ACTIONS.slice().sort((a, b) =>
+            a.id === '__builtin:run-cgi' ? -1 : b.id === '__builtin:run-cgi' ? 1 : 0)
+        : BUILTIN_ACTIONS;
+
+      for (const action of orderedBuiltins) {
+        if (actionMatchesFile(action, filename)) {
+          builtinActions.push(action);
+        }
+      }
+
+      const allActions = [...matchingActions, ...builtinActions];
+
+      if (allActions.length === 0) {
         // No matching tools for this file type
         toolSelect.innerHTML = '<option value="">No tools</option>';
       } else {
-        toolSelect.innerHTML = matchingActions
+        toolSelect.innerHTML = allActions
           .map(a => `<option value="${a.id}">${a.name}</option>`)
           .join('');
       }
@@ -648,6 +694,12 @@ export function registerWorkspaceManager(desktop: Desktop): void {
     /** Get the currently selected action */
     function getSelectedAction(): PackageAction | undefined {
       const selectedId = toolSelect.value;
+
+      // Check built-in actions first
+      const builtin = BUILTIN_ACTIONS.find(a => a.id === selectedId);
+      if (builtin) return builtin;
+
+      // Then check package actions
       const allActions = workspace.getAllActions();
       return allActions.find(a => a.id === selectedId);
     }
@@ -1004,8 +1056,6 @@ export function registerWorkspaceManager(desktop: Desktop): void {
         return;
       }
 
-      const toolPkg = action.package;
-
       log(`Building ${name} with ${action.name}...`);
 
       // Create terminal window
@@ -1034,52 +1084,11 @@ export function registerWorkspaceManager(desktop: Desktop): void {
       termContent.addEventListener('click', () => terminal.focus());
       termWin.addEventListener('mousedown', () => requestAnimationFrame(() => terminal.focus()));
 
-      // Check if tool package is already mounted on any drive
-      let toolDriveLetter = '';
-      if (toolPkg) {
-        for (const config of workspace.listDriveConfigs()) {
-          if (config.packages.includes(toolPkg)) {
-            toolDriveLetter = config.letter;
-            break;
-          }
-        }
-      }
-
-      // Find an unused drive letter for temp tool drive if needed
-      let tempDriveLetter = '';
-      if (toolPkg && !toolDriveLetter) {
-        const usedLetters = new Set(workspace.listDriveConfigs().map(c => c.letter));
-        for (const letter of 'CDEFGHIJKLMNOP') {
-          if (!usedLetters.has(letter)) {
-            tempDriveLetter = letter;
-            break;
-          }
-        }
-      }
-
-      // Create merged FS with temp tool drive if needed
-      let mergedFS: MergedWorkspaceFS | null = null;
-      if (tempDriveLetter && toolPkg) {
-        const pkgUrl = `./cpm/${toolPkg}.zip`;
-        try {
-          const pkg = await loadPackageFromUrl(pkgUrl);
-          const toolDriveFS = new PackageDriveFS([pkg]);
-          mergedFS = new MergedWorkspaceFS(workspace.getVirtualFS());
-          mergedFS.addDrive(tempDriveLetter, toolDriveFS);
-          toolDriveLetter = tempDriveLetter;
-        } catch (err) {
-          terminal.writeString(`Warning: Could not load ${toolPkg}: ${err}\r\n`);
-        }
-      }
-
       // Show build info
       terminal.writeString(`Building ${drive}:${name} with ${action.name}\r\n`);
       for (const config of workspace.listDriveConfigs()) {
         const mode = config.writable ? 'rw' : 'ro';
         terminal.writeString(`${config.letter}: (${mode}) - ${workspace.listFiles(config.letter).length} files\r\n`);
-      }
-      if (tempDriveLetter && mergedFS) {
-        terminal.writeString(`${tempDriveLetter}: (tmp) - ${action.name}\r\n`);
       }
       terminal.writeString('\r\n');
 
@@ -1090,21 +1099,9 @@ export function registerWorkspaceManager(desktop: Desktop): void {
         return;
       }
 
-      // Build drives map including temp drive
-      const drives = new Map<number, string>();
-      for (const config of workspace.listDriveConfigs()) {
-        drives.set(config.letter.charCodeAt(0) - 65, `/${config.letter}`);
-      }
-      if (tempDriveLetter) {
-        drives.set(tempDriveLetter.charCodeAt(0) - 65, `/${tempDriveLetter}`);
-      }
-
-      // Create emulator with merged FS or base FS
-      const { CpmEmulator } = await import('../cpm/emulator');
-      const cpm = new CpmEmulator({
-        fs: mergedFS || workspace.getVirtualFS(),
-        console: terminal,
-        drives,
+      // Create emulator
+      const cpm = workspace.createEmulator(terminal, {
+        shellBinary: shellInfo.binary,
         shellAddress: shellInfo.loadAddress,
         onExit: () => {
           terminal.writeString('\r\n[Build complete]\r\n');
@@ -1113,20 +1110,11 @@ export function registerWorkspaceManager(desktop: Desktop): void {
       });
 
       terminal.focus();
-      cpm.load(shellInfo.binary, true);
 
       // Queue build command from manifest's submit template
-      // Use the submit template from action, replacing {name} and {drive}
-      // Also need to prefix tool command with its drive letter if on temp drive
-      let cmd = action.submit
+      const cmd = action.submit
         ? action.submit.replace(/\{name\}/g, baseName).replace(/\{drive\}/g, drive)
         : `${action.command} ${drive}:${baseName}\r`;
-
-      // If tool is on a temp drive, prefix commands with that drive
-      if (tempDriveLetter && cmd) {
-        // Prefix first command with drive letter (e.g., "ASM" -> "C:ASM")
-        cmd = `${tempDriveLetter}:${cmd}`;
-      }
 
       setTimeout(() => {
         terminal.queueInputSlow(cmd, 5);
@@ -1137,37 +1125,27 @@ export function registerWorkspaceManager(desktop: Desktop): void {
       });
     }
 
-    /** Open workspace terminal with tool packages on a temporary drive */
-    async function openToolTerminal(): Promise<void> {
-      const action = getSelectedAction();
-      const toolPkg = action?.package;
-
-      // Check if tool package is already mounted on any drive
-      let existingToolDrive = '';
-      if (toolPkg) {
-        for (const config of workspace.listDriveConfigs()) {
-          if (config.packages.includes(toolPkg)) {
-            existingToolDrive = config.letter;
-            break;
-          }
-        }
+    /** Run a .COM file directly in a terminal (no shell) */
+    async function runInTerminal(): Promise<void> {
+      if (!currentFile) {
+        log('No file selected');
+        return;
       }
 
-      // Find an unused drive letter for temp tool drive (CP/M: A-P)
-      const usedLetters = new Set(workspace.listDriveConfigs().map(c => c.letter));
-      let tempDriveLetter = '';
-      if (toolPkg && !existingToolDrive) {
-        for (const letter of 'PONMLKJIHGFEDCBA'.split('')) {
-          if (!usedLetters.has(letter)) {
-            tempDriveLetter = letter;
-            break;
-          }
-        }
+      const { drive, name } = currentFile;
+
+      // Read the .COM binary
+      const binary = workspace.readFile(drive, name);
+      if (!binary) {
+        log(`Cannot read ${drive}:${name}`);
+        return;
       }
+
+      log(`Running ${name}...`);
 
       // Create terminal window
       const termWindowId = desktop.wm.create({
-        title: `Terminal: ${action?.name || 'CP/M'}`,
+        title: `Run: ${name}`,
         app: 'system.cpm',
         appName: 'CP/M',
         width: 660,
@@ -1187,73 +1165,60 @@ export function registerWorkspaceManager(desktop: Desktop): void {
       });
       termContent.appendChild(terminal.element);
 
+      // Focus handling
       const termWin = document.getElementById(termWindowId)!;
       termContent.addEventListener('click', () => terminal.focus());
       termWin.addEventListener('mousedown', () => requestAnimationFrame(() => terminal.focus()));
 
-      // Create merged FS with temp tool drive if needed
-      let mergedFS: MergedWorkspaceFS | null = null;
-      if (tempDriveLetter && toolPkg) {
-        // Load the tool package
-        const pkgUrl = `./cpm/${toolPkg}.zip`;
-        try {
-          const pkg = await loadPackageFromUrl(pkgUrl);
-          const toolDriveFS = new PackageDriveFS([pkg]);
-          mergedFS = new MergedWorkspaceFS(workspace.getVirtualFS());
-          mergedFS.addDrive(tempDriveLetter, toolDriveFS);
-        } catch (err) {
-          terminal.writeString(`Warning: Could not load ${toolPkg}: ${err}\r\n`);
-        }
-      }
-
-      // Show workspace info
-      terminal.writeString('Workspace Terminal\r\n');
-      terminal.writeString('==================\r\n');
-      for (const config of workspace.listDriveConfigs()) {
-        const mode = config.writable ? 'rw' : 'ro';
-        const hasTool = config.packages.includes(toolPkg || '');
-        const note = hasTool ? ` [${action?.name}]` : '';
-        terminal.writeString(`${config.letter}: (${mode}) - ${workspace.listFiles(config.letter).length} files${note}\r\n`);
-      }
-      if (tempDriveLetter && mergedFS) {
-        terminal.writeString(`${tempDriveLetter}: (tmp) - ${action?.name} [temp]\r\n`);
-      }
-      terminal.writeString('\r\n');
-
-      // Find shell from mounted packages
-      const shellInfo = workspace.findShell();
-      if (!shellInfo) {
-        terminal.writeString('Error: No shell found in mounted packages.\r\n');
-        return;
-      }
-
-      // Build drives map including temp drive
+      // Build drives map
       const drives = new Map<number, string>();
       for (const config of workspace.listDriveConfigs()) {
         drives.set(config.letter.charCodeAt(0) - 65, `/${config.letter}`);
       }
-      if (tempDriveLetter) {
-        drives.set(tempDriveLetter.charCodeAt(0) - 65, `/${tempDriveLetter}`);
-      }
 
-      // Create emulator with merged FS or base FS
+      // Create emulator with direct transient execution (no shell)
       const { CpmEmulator } = await import('../cpm/emulator');
       const cpm = new CpmEmulator({
-        fs: mergedFS || workspace.getVirtualFS(),
+        fs: workspace.getVirtualFS(),
         console: terminal,
         drives,
-        shellAddress: shellInfo.loadAddress,
         onExit: () => {
-          terminal.writeString('\r\n[Shell exited]\r\n');
-          updateFileTree(); // Refresh explorer to show any files created by CP/M programs
+          terminal.writeString('\r\n[Program terminated]\r\n');
+          updateFileTree();
         }
       });
 
+      // Set current drive to where the program is
+      cpm.setCurrentDrive(drive.charCodeAt(0) - 65);
+
+      // Load and run program directly (no shell)
+      cpm.setupTransient(binary, '');
       terminal.focus();
-      cpm.load(shellInfo.binary, true);
+
       cpm.run().catch(err => {
         terminal.writeString(`\r\nError: ${err.message}\r\n`);
       });
+    }
+
+    /** Run a .COM file as CGI and display output in HTML viewer */
+    async function runAsCgi(): Promise<void> {
+      if (!currentFile) {
+        log('No file selected');
+        return;
+      }
+
+      const { drive, name } = currentFile;
+
+      // Import and open CGI viewer
+      const { openCgiViewer } = await import('./cgi-viewer');
+      await openCgiViewer({
+        desktop,
+        workspace,
+        programDrive: drive,
+        programName: name
+      });
+
+      log(`Opened CGI viewer for ${name}`);
     }
 
     // Editor change tracking
@@ -1336,6 +1301,207 @@ export function registerWorkspaceManager(desktop: Desktop): void {
         'MSG2:   DB      13,10,\'Second digit: $\'\r\n' +
         'MSG3:   DB      13,10,\'Sum: $\'\r\n' +
         'CRLF:   DB      13,10,\'$\'\r\n' +
+        '\r\n' +
+        '        END     START\r\n\x1A'
+      ));
+
+      // CGI example - demonstrates HTML output, CGI.ENV and POST body reading
+      workspace.writeFile('B', 'HTML.ASM', new TextEncoder().encode(
+        '; 8080 Assembly - CGI Example\r\n' +
+        '; Outputs HTML page, displays CGI.ENV, reads POST body\r\n' +
+        '; Build: ASM HTML then LOAD HTML\r\n' +
+        '; Run: Select HTML.COM, choose "Run as CGI"\r\n' +
+        ';\r\n' +
+        '        ORG     100H\r\n' +
+        '\r\n' +
+        'BDOS    EQU     5\r\n' +
+        'CONIN   EQU     1           ; Console input\r\n' +
+        'CONOUT  EQU     2           ; Console output\r\n' +
+        'PRINT   EQU     9           ; Print string\r\n' +
+        'OPEN    EQU     15          ; Open file\r\n' +
+        'READ    EQU     20          ; Read sequential\r\n' +
+        'SETDMA  EQU     26          ; Set DMA address\r\n' +
+        '\r\n' +
+        'START:  LXI     D,HEADER    ; CGI header\r\n' +
+        '        MVI     C,PRINT\r\n' +
+        '        CALL    BDOS\r\n' +
+        '\r\n' +
+        '        LXI     D,HTML1     ; HTML start\r\n' +
+        '        MVI     C,PRINT\r\n' +
+        '        CALL    BDOS\r\n' +
+        '\r\n' +
+        ';--- Read CGI.ENV into buffer ---\r\n' +
+        '        LXI     D,FCB       ; Open CGI.ENV\r\n' +
+        '        MVI     C,OPEN\r\n' +
+        '        CALL    BDOS\r\n' +
+        '        CPI     255\r\n' +
+        '        JZ      NOENV\r\n' +
+        '\r\n' +
+        '        LXI     D,ENVBUF    ; Read into ENVBUF\r\n' +
+        '        MVI     C,SETDMA\r\n' +
+        '        CALL    BDOS\r\n' +
+        '        LXI     D,FCB\r\n' +
+        '        MVI     C,READ\r\n' +
+        '        CALL    BDOS\r\n' +
+        '\r\n' +
+        ';--- Display CGI.ENV ---\r\n' +
+        '        LXI     H,ENVBUF\r\n' +
+        '        MVI     B,128\r\n' +
+        'PRENV:  MOV     A,M\r\n' +
+        '        CPI     26          ; EOF?\r\n' +
+        '        JZ      ENVDON\r\n' +
+        '        CPI     13          ; Skip CR\r\n' +
+        '        JZ      PRENX\r\n' +
+        '        CPI     10          ; LF -> <br>\r\n' +
+        '        JZ      PRBR\r\n' +
+        '        MOV     E,A\r\n' +
+        '        MVI     C,CONOUT\r\n' +
+        '        CALL    BDOS\r\n' +
+        '        JMP     PRENX\r\n' +
+        'PRBR:   PUSH    H\r\n' +
+        '        PUSH    B\r\n' +
+        '        LXI     D,BRTAG\r\n' +
+        '        MVI     C,PRINT\r\n' +
+        '        CALL    BDOS\r\n' +
+        '        POP     B\r\n' +
+        '        POP     H\r\n' +
+        'PRENX:  INX     H\r\n' +
+        '        DCR     B\r\n' +
+        '        JNZ     PRENV\r\n' +
+        '        JMP     ENVDON\r\n' +
+        '\r\n' +
+        'NOENV:  LXI     D,NOENVMSG\r\n' +
+        '        MVI     C,PRINT\r\n' +
+        '        CALL    BDOS\r\n' +
+        '\r\n' +
+        ';--- Parse CONTENT_LENGTH from ENVBUF ---\r\n' +
+        'ENVDON: LXI     D,HTML2     ; End CGI env section\r\n' +
+        '        MVI     C,PRINT\r\n' +
+        '        CALL    BDOS\r\n' +
+        '\r\n' +
+        '        LXI     H,ENVBUF    ; Find CONTENT_LENGTH=\r\n' +
+        '        LXI     D,CLSTR\r\n' +
+        '        CALL    FIND\r\n' +
+        '        JZ      NOCLEN      ; Not found\r\n' +
+        '\r\n' +
+        ';--- Parse number after = ---\r\n' +
+        '        LXI     D,0         ; DE = content length\r\n' +
+        'PARSEN: MOV     A,M\r\n' +
+        '        CPI     \'0\'\r\n' +
+        '        JC      GOTLEN      ; < \'0\', done\r\n' +
+        '        CPI     \'9\'+1\r\n' +
+        '        JNC     GOTLEN      ; > \'9\', done\r\n' +
+        '        SUI     \'0\'         ; Convert to digit\r\n' +
+        '        MOV     B,A         ; Save digit\r\n' +
+        ';--- DE = DE * 10 + digit ---\r\n' +
+        '        PUSH    H\r\n' +
+        '        MOV     H,D\r\n' +
+        '        MOV     L,E         ; HL = DE\r\n' +
+        '        DAD     H           ; *2\r\n' +
+        '        DAD     H           ; *4\r\n' +
+        '        DAD     D           ; *5\r\n' +
+        '        DAD     H           ; *10\r\n' +
+        '        MVI     C,0\r\n' +
+        '        MOV     D,C\r\n' +
+        '        MOV     E,B         ; DE = digit\r\n' +
+        '        DAD     D           ; HL = HL*10 + digit\r\n' +
+        '        MOV     D,H\r\n' +
+        '        MOV     E,L         ; DE = result\r\n' +
+        '        POP     H\r\n' +
+        '        INX     H\r\n' +
+        '        JMP     PARSEN\r\n' +
+        '\r\n' +
+        ';--- Read POST body if CONTENT_LENGTH > 0 ---\r\n' +
+        'GOTLEN: MOV     A,D\r\n' +
+        '        ORA     E\r\n' +
+        '        JZ      NOCLEN      ; Length is 0\r\n' +
+        '\r\n' +
+        '        PUSH    D           ; Save length\r\n' +
+        '        LXI     D,POSTMSG   ; Show POST header\r\n' +
+        '        MVI     C,PRINT\r\n' +
+        '        CALL    BDOS\r\n' +
+        '        POP     D\r\n' +
+        '\r\n' +
+        ';--- Read DE bytes from console (CONIN echoes automatically) ---\r\n' +
+        'RDPOST: MOV     A,D\r\n' +
+        '        ORA     E\r\n' +
+        '        JZ      NOCLEN      ; Done reading\r\n' +
+        '        PUSH    D\r\n' +
+        '        MVI     C,CONIN     ; Read char (auto-echoes)\r\n' +
+        '        CALL    BDOS\r\n' +
+        '        POP     D\r\n' +
+        '        DCX     D           ; Decrement count\r\n' +
+        '        JMP     RDPOST\r\n' +
+        '\r\n' +
+        'NOCLEN: LXI     D,HTML3     ; Forms and footer\r\n' +
+        '        MVI     C,PRINT\r\n' +
+        '        CALL    BDOS\r\n' +
+        '        JMP     0           ; Exit\r\n' +
+        '\r\n' +
+        ';--- Find string DE in buffer HL ---\r\n' +
+        ';--- Returns HL pointing after match, Z=0 if found ---\r\n' +
+        'FIND:   PUSH    D\r\n' +
+        'FIND1:  LDAX    D           ; Get search char\r\n' +
+        '        ORA     A\r\n' +
+        '        JZ      FOUND       ; End of search string\r\n' +
+        '        MOV     B,A\r\n' +
+        'FIND2:  MOV     A,M         ; Get buffer char\r\n' +
+        '        CPI     26          ; EOF?\r\n' +
+        '        JZ      NOTFND\r\n' +
+        '        CMP     B           ; Match?\r\n' +
+        '        JZ      FIND3\r\n' +
+        '        INX     H           ; Next buffer pos\r\n' +
+        '        POP     D           ; Restart search\r\n' +
+        '        PUSH    D\r\n' +
+        '        JMP     FIND2\r\n' +
+        'FIND3:  INX     H           ; Matched, advance both\r\n' +
+        '        INX     D\r\n' +
+        '        JMP     FIND1\r\n' +
+        'FOUND:  POP     D\r\n' +
+        '        MVI     A,1         ; Z=0 (found)\r\n' +
+        '        ORA     A\r\n' +
+        '        RET\r\n' +
+        'NOTFND: POP     D\r\n' +
+        '        XRA     A           ; Z=1 (not found)\r\n' +
+        '        RET\r\n' +
+        '\r\n' +
+        '; Data\r\n' +
+        'HEADER: DB      \'Content-Type: text/html\',13,10,13,10,\'$\'\r\n' +
+        '\r\n' +
+        'HTML1:  DB      \'<html><head>\'\r\n' +
+        '        DB      \'<title>CP/M CGI Demo</title></head>\'\r\n' +
+        '        DB      \'<body><h1>CP/M CGI</h1>\',13,10\r\n' +
+        '        DB      \'<h2>Environment</h2>\'\r\n' +
+        '        DB      \'<pre style=\"background:#fff;padding:8px\">\',\'$\'\r\n' +
+        '\r\n' +
+        'NOENVMSG: DB    \'(CGI.ENV not found)\',\'$\'\r\n' +
+        'BRTAG:  DB      \'<br>\',\'$\'\r\n' +
+        '\r\n' +
+        'HTML2:  DB      \'</pre>\',13,10,\'$\'\r\n' +
+        '\r\n' +
+        'POSTMSG: DB     \'<h2>POST Body</h2><pre>\',\'$\'\r\n' +
+        '\r\n' +
+        'CLSTR:  DB      \'CONTENT_LENGTH=\',0  ; Search string\r\n' +
+        '\r\n' +
+        'HTML3:  DB      \'</pre>\',13,10\r\n' +
+        '        DB      \'<h2>GET Form</h2>\'\r\n' +
+        '        DB      \'<form method=\"GET\">\'\r\n' +
+        '        DB      \'Name: <input name=\"user\"> \'\r\n' +
+        '        DB      \'<button type=\"submit\">GET</button>\'\r\n' +
+        '        DB      \'</form>\',13,10\r\n' +
+        '        DB      \'<h2>POST Form</h2>\'\r\n' +
+        '        DB      \'<form method=\"POST\">\'\r\n' +
+        '        DB      \'Msg: <input name=\"msg\"> \'\r\n' +
+        '        DB      \'<button type=\"submit\">POST</button>\'\r\n' +
+        '        DB      \'</form>\',13,10\r\n' +
+        '        DB      \'<p><a href=\"?p=1\">Link 1</a> | \'\r\n' +
+        '        DB      \'<a href=\"?p=2\">Link 2</a></p>\',13,10\r\n' +
+        '        DB      \'<hr><i>CP/M 2.2</i></body></html>\',\'$\'\r\n' +
+        '\r\n' +
+        'FCB:    DB      0,\'CGI     ENV\'\r\n' +
+        '        DS      24\r\n' +
+        '\r\n' +
+        'ENVBUF: DS      128\r\n' +
         '\r\n' +
         '        END     START\r\n\x1A'
       ));

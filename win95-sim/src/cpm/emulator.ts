@@ -143,6 +143,26 @@ class Fcb {
     return ext ? `${this.name}.${ext}` : this.name;
   }
 
+  /** Get raw name bytes (8 chars, space-padded, with ? wildcards preserved) */
+  getRawName(): string {
+    let name = '';
+    for (let i = 1; i < 9; i++) {
+      const letter = this.mem[i] & 0x7F;
+      name += String.fromCodePoint(letter);
+    }
+    return name;
+  }
+
+  /** Get raw extension bytes (3 chars, space-padded, with ? wildcards preserved) */
+  getRawExt(): string {
+    let ext = '';
+    for (let i = 9; i < 12; i++) {
+      const letter = this.mem[i] & 0x7F;
+      ext += String.fromCodePoint(letter);
+    }
+    return ext;
+  }
+
   /** Current extent number */
   get ex(): number { return this.mem[0x0C]; }
   set ex(n: number) { this.mem[0x0C] = n; }
@@ -228,6 +248,8 @@ export class CpmEmulator implements Hal {
   private dma = DEFAULT_DMA;
   private dirEntries: string[] = [];
   private currentSearchDir: string | null = null; // Directory being searched
+  private searchPatternName: string = '????????'; // 8-char name pattern (? = wildcard)
+  private searchPatternExt: string = '???'; // 3-char ext pattern (? = wildcard)
   private keyQueue: number[] = [];
   private keyResolve: ((key: number) => void) | undefined;
   private running = false;
@@ -342,6 +364,8 @@ export class CpmEmulator implements Hal {
     this.dma = DEFAULT_DMA;
     this.dirEntries = [];
     this.currentSearchDir = null;
+    this.searchPatternName = '????????';
+    this.searchPatternExt = '???';
 
     // Clear command line buffer and tail area
     this.memory[0x0080] = 0;
@@ -569,9 +593,45 @@ export class CpmEmulator implements Hal {
     return dir.endsWith('/') ? dir + filename : dir + '/' + filename;
   }
 
+  /** Check if a filename matches the search pattern (supports ? wildcards) */
+  private matchesSearchPattern(filename: string): boolean {
+    // Parse filename into name and ext
+    const dotIdx = filename.lastIndexOf('.');
+    const name = (dotIdx >= 0 ? filename.slice(0, dotIdx) : filename).toUpperCase();
+    const ext = (dotIdx >= 0 ? filename.slice(dotIdx + 1) : '').toUpperCase();
+
+    // Pad to 8.3 format
+    const paddedName = name.padEnd(8, ' ').slice(0, 8);
+    const paddedExt = ext.padEnd(3, ' ').slice(0, 3);
+
+    // Match each character (? matches anything)
+    for (let i = 0; i < 8; i++) {
+      const pattern = this.searchPatternName.charCodeAt(i);
+      const actual = paddedName.charCodeAt(i);
+      if (pattern !== 0x3F && pattern !== actual) { // 0x3F = '?'
+        return false;
+      }
+    }
+    for (let i = 0; i < 3; i++) {
+      const pattern = this.searchPatternExt.charCodeAt(i);
+      const actual = paddedExt.charCodeAt(i);
+      if (pattern !== 0x3F && pattern !== actual) { // 0x3F = '?'
+        return false;
+      }
+    }
+    return true;
+  }
+
   /** Search for next directory entry */
   private searchForNextDirEntry(): number {
-    const filename = this.dirEntries.shift();
+    // Find next file that matches the search pattern
+    let filename: string | undefined;
+    while ((filename = this.dirEntries.shift()) !== undefined) {
+      if (this.matchesSearchPattern(filename)) {
+        break;
+      }
+    }
+
     if (!filename) {
       return 0xFF; // No more entries
     }
@@ -879,6 +939,8 @@ export class CpmEmulator implements Hal {
           break;
         }
         this.currentSearchDir = dirName; // Save for searchForNextDirEntry
+        this.searchPatternName = fcb.getRawName(); // Save search pattern
+        this.searchPatternExt = fcb.getRawExt();
         this.dirEntries = this.fs.readdir(dirName).sort();
         regs.a = this.searchForNextDirEntry();
         this.traceResult(fname, `A=${regs.a.toString(16).toUpperCase()}`);

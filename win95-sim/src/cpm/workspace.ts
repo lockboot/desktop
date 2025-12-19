@@ -158,15 +158,21 @@ export async function fetchAvailablePackages(baseUrl = './cpm'): Promise<Package
  */
 export class WorkspaceFS implements VirtualFS {
   private driveManager: DriveManager;
-  private handles = new Map<number, { drive: DriveFS; name: string; content: Uint8Array; position: number; mode: string }>();
+  private handles = new Map<number, { drive: DriveFS; name: string; letter: string; content: Uint8Array; position: number; mode: string }>();
   private nextHandle = 1;
+  private onFileChangeCallback?: (drive: string, name: string, action: 'write' | 'delete' | 'rename') => void;
 
   constructor(driveManager: DriveManager) {
     this.driveManager = driveManager;
   }
 
+  /** Set callback for file changes */
+  setOnFileChange(callback: (drive: string, name: string, action: 'write' | 'delete' | 'rename') => void): void {
+    this.onFileChangeCallback = callback;
+  }
+
   /** Parse path to drive letter and filename */
-  private parsePath(path: string): { drive: DriveFS; name: string } | null {
+  private parsePath(path: string): { drive: DriveFS; name: string; letter: string } | null {
     // Paths are /A/FILENAME.EXT or similar
     const match = path.match(/^\/([A-P])\/(.+)$/i);
     if (!match) {
@@ -179,20 +185,20 @@ export class WorkspaceFS implements VirtualFS {
     if (!driveFs) {
       return null;
     }
-    return { drive: driveFs, name: fileName };
+    return { drive: driveFs, name: fileName, letter: driveLetter };
   }
 
   open(path: string, mode: 'r' | 'r+' | 'w' | 'wx+'): number {
     const parsed = this.parsePath(path);
     if (!parsed) return -1;
 
-    const { drive, name } = parsed;
+    const { drive, name, letter } = parsed;
 
     if (mode === 'r' || mode === 'r+') {
       const content = drive.readFile(name);
       if (!content) return -1;
       const handle = this.nextHandle++;
-      this.handles.set(handle, { drive, name, content: new Uint8Array(content), position: 0, mode });
+      this.handles.set(handle, { drive, name, letter, content: new Uint8Array(content), position: 0, mode });
       return handle;
     }
 
@@ -205,7 +211,8 @@ export class WorkspaceFS implements VirtualFS {
       // This matches CP/M semantics where MAKE creates the directory entry
       drive.writeFile(name, new Uint8Array(0));
       const handle = this.nextHandle++;
-      this.handles.set(handle, { drive, name, content: new Uint8Array(0), position: 0, mode });
+      this.handles.set(handle, { drive, name, letter, content: new Uint8Array(0), position: 0, mode });
+      this.onFileChangeCallback?.(letter, name, 'write');
       return handle;
     }
 
@@ -249,6 +256,7 @@ export class WorkspaceFS implements VirtualFS {
 
     // Write immediately to drive - files should be instantly visible to other processes
     h.drive.writeFile(h.name, h.content);
+    this.onFileChangeCallback?.(h.letter, h.name, 'write');
     return length;
   }
 
@@ -264,7 +272,11 @@ export class WorkspaceFS implements VirtualFS {
   unlink(path: string): boolean {
     const parsed = this.parsePath(path);
     if (!parsed) return false;
-    return parsed.drive.deleteFile(parsed.name);
+    const result = parsed.drive.deleteFile(parsed.name);
+    if (result) {
+      this.onFileChangeCallback?.(parsed.letter, parsed.name, 'delete');
+    }
+    return result;
   }
 
   rename(oldPath: string, newPath: string): boolean {
@@ -283,6 +295,7 @@ export class WorkspaceFS implements VirtualFS {
 
     parsedOld.drive.deleteFile(parsedOld.name);
     parsedNew.drive.writeFile(parsedNew.name, content);
+    this.onFileChangeCallback?.(parsedOld.letter, parsedOld.name, 'rename');
     return true;
   }
 
@@ -313,6 +326,7 @@ export class WorkspaceFS implements VirtualFS {
     }
     const data = typeof content === 'string' ? new TextEncoder().encode(content) : content;
     parsed.drive.writeFile(parsed.name, data);
+    this.onFileChangeCallback?.(parsed.letter, parsed.name, 'write');
   }
 
   getFile(path: string): Uint8Array | undefined {
@@ -625,6 +639,14 @@ export class CpmWorkspace implements Workspace {
 
   getVirtualFS(): VirtualFS {
     return this.virtualFS;
+  }
+
+  /**
+   * Set callback for file changes.
+   * Called when files are written, deleted, or renamed via the VirtualFS or direct writeFile.
+   */
+  setOnFileChange(callback: (drive: string, name: string, action: 'write' | 'delete' | 'rename') => void): void {
+    this.virtualFS.setOnFileChange(callback);
   }
 
   /**

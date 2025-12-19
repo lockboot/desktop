@@ -24,7 +24,7 @@ export class Desktop {
   private appWindows = new Map<string, string>(); // address -> windowId
 
   constructor(container: HTMLElement) {
-    container.innerHTML = `<div id="desktop"><div id="taskbar"><button id="start-button"><div class="win-logo"></div><span>Start</span></button><div id="task-area"></div><button id="task-switcher"><span class="arrow">^</span><span class="count"></span></button><div id="system-tray"><div class="tray-icon"></div><div id="clock"></div></div></div><div id="start-menu"><div id="start-menu-sidebar"><span>Windows 95</span></div><div id="start-menu-items"></div></div><div id="task-switcher-menu" class="menu"></div></div>`;
+    container.innerHTML = `<div id="desktop"><div id="taskbar"><button id="start-button"><div class="win-logo"></div><span>Start</span></button><div id="task-area"></div><button id="task-switcher"><span class="arrow">^</span><span class="count"></span></button><div id="system-tray"><div class="tray-icon"></div><div id="clock"></div></div></div><div id="start-menu"><div id="start-menu-sidebar"><span>OS/402 Desktop</span></div><div id="start-menu-items"></div></div><div id="task-switcher-menu" class="menu"></div></div>`;
 
     this.element = document.getElementById('desktop')!;
     this.menuManager = new MenuManager(this.element);

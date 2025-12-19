@@ -158,6 +158,7 @@
 
 .theme-nirvana #start-menu-sidebar {
   background: linear-gradient(to top, #000080, #1084d0);
+  padding-left: 3px;
 }
 
 .theme-nirvana #start-menu-sidebar span {
