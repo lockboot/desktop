@@ -14,24 +14,12 @@ use crate::{CpmExitInfo, ExitReason};
 /// Type alias for the clock.
 type TsClock = TsCounter<i32>;
 
-/// CP/M Emulator bus - memory + I/O.
-struct Bus<'a, C: CpmConsole, D: DriveFS> {
+/// CP/M Emulator bus - memory + I/O for z80emu.
+struct Bus<'a> {
     memory: &'a mut [u8; 65536],
-    console: &'a mut C,
-    drives: &'a mut [Option<D>; 16],
-    current_drive: &'a mut u8,
-    current_user: &'a mut u8,
-    dma: &'a mut u16,
-    dir_entries: &'a mut Vec<String>,
-    dir_index: &'a mut usize,
-    search_pattern_name: &'a mut [u8; 8],
-    search_pattern_ext: &'a mut [u8; 3],
-    search_drive: &'a mut u8,
-    open_files: &'a mut Vec<(u8, String, Vec<u8>, bool)>,
-    trace: bool,
 }
 
-impl<C: CpmConsole, D: DriveFS> Memory for Bus<'_, C, D> {
+impl Memory for Bus<'_> {
     type Timestamp = i32;
 
     fn read_debug(&self, addr: u16) -> u8 {
@@ -47,7 +35,7 @@ impl<C: CpmConsole, D: DriveFS> Memory for Bus<'_, C, D> {
     }
 }
 
-impl<C: CpmConsole, D: DriveFS> Io for Bus<'_, C, D> {
+impl Io for Bus<'_> {
     type Timestamp = i32;
     type WrIoBreak = ();
     type RetiBreak = ();
@@ -219,8 +207,15 @@ impl<C: CpmConsole, D: DriveFS> CpmEmulator<C, D> {
 
     /// Set command line arguments.
     /// Args are stored at 0x0080 (length byte + text).
+    /// CP/M convention: command tail starts with a space, e.g. " ARG1 ARG2"
     pub fn set_args(&mut self, args: &str) {
-        let args_upper = args.to_uppercase();
+        if args.is_empty() {
+            self.memory[addr::CMDLINE as usize] = 0;
+            return;
+        }
+
+        // CP/M command tail has a leading space
+        let args_upper = format!(" {}", args.to_uppercase());
         let bytes = args_upper.as_bytes();
         let len = bytes.len().min(127);
 
@@ -302,18 +297,6 @@ impl<C: CpmConsole, D: DriveFS> CpmEmulator<C, D> {
             // Execute instruction
             let mut bus = Bus {
                 memory: &mut self.memory,
-                console: &mut self.console,
-                drives: &mut self.drives,
-                current_drive: &mut self.current_drive,
-                current_user: &mut self.current_user,
-                dma: &mut self.dma,
-                dir_entries: &mut self.dir_entries,
-                dir_index: &mut self.dir_index,
-                search_pattern_name: &mut self.search_pattern_name,
-                search_pattern_ext: &mut self.search_pattern_ext,
-                search_drive: &mut self.search_drive,
-                open_files: &mut self.open_files,
-                trace: self.trace,
             };
 
             let _result =

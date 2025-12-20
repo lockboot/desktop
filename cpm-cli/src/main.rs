@@ -1,12 +1,14 @@
 //! CP/M CLI - Run CP/M programs from the command line.
 //!
 //! Usage:
-//!   cpm [packages...] [-- command args]
+//!   cpm [packages/files...] [-- command args]
 //!
 //! Examples:
 //!   cpm cpm22.zip                    # Load cpm22.zip, find and run shell
 //!   cpm cpm22.zip utilities.zip      # Load multiple packages
-//!   cpm cpm22.zip -- STAT             # Run STAT command directly
+//!   cpm cpm22.zip -- STAT            # Run STAT command directly
+//!   cpm cpm22.zip hello.com          # Load package + add hello.com to A:
+//!   cpm hello.com                    # Run hello.com directly (no shell)
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -21,7 +23,8 @@ use crossterm::{
 use tokio::sync::mpsc as tokio_mpsc;
 
 use cpm_core::{
-    load_package_from_path, CpmConsole, CpmEmulator, ExitReason, OverlayDriveFS, PackageDriveFS,
+    load_package_from_path, CpmConsole, CpmEmulator, DriveFS, ExitReason, OverlayDriveFS,
+    PackageDriveFS,
 };
 
 /// CP/M Emulator CLI
@@ -29,9 +32,9 @@ use cpm_core::{
 #[command(name = "cpm")]
 #[command(about = "Run CP/M programs")]
 struct Args {
-    /// Package ZIP files to load
+    /// Package ZIP files or .COM executables to load
     #[arg(required = true)]
-    packages: Vec<PathBuf>,
+    files: Vec<PathBuf>,
 
     /// Enable syscall tracing
     #[arg(short, long)]
@@ -208,46 +211,99 @@ fn find_shell(packages: &[cpm_core::LoadedPackage]) -> Option<ShellInfo> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    // Load all packages
+    // Separate packages (.zip) from loose files (.com)
     let mut packages = Vec::new();
-    for path in &args.packages {
-        match load_package_from_path(path) {
-            Ok(pkg) => {
-                eprintln!(
-                    "Loaded package: {} ({} files)",
-                    pkg.manifest.name,
-                    pkg.files.len()
-                );
-                packages.push(pkg);
+    let mut loose_files: Vec<(String, Vec<u8>)> = Vec::new();
+
+    for path in &args.files {
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_uppercase();
+
+        if ext == "ZIP" {
+            // Load as package
+            match load_package_from_path(path) {
+                Ok(pkg) => {
+                    eprintln!(
+                        "Loaded package: {} ({} files)",
+                        pkg.manifest.name,
+                        pkg.files.len()
+                    );
+                    packages.push(pkg);
+                }
+                Err(e) => {
+                    eprintln!("Failed to load {}: {}", path.display(), e);
+                    return Err(e.into());
+                }
             }
-            Err(e) => {
-                eprintln!("Failed to load {}: {}", path.display(), e);
-                return Err(e.into());
+        } else if ext == "COM" {
+            // Load as loose .COM file
+            let filename = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("UNKNOWN.COM")
+                .to_uppercase();
+            match std::fs::read(path) {
+                Ok(data) => {
+                    //eprintln!("Loaded executable: {}", filename);
+                    loose_files.push((filename, data));
+                }
+                Err(e) => {
+                    eprintln!("Failed to read {}: {}", path.display(), e);
+                    return Err(e.into());
+                }
             }
+        } else {
+            eprintln!("Unknown file type: {} (expected .zip or .com)", path.display());
+            return Err(format!("Unknown file type: {}", path.display()).into());
         }
     }
 
-    if packages.is_empty() {
-        eprintln!("No packages loaded");
+    if packages.is_empty() && loose_files.is_empty() {
+        eprintln!("No packages or executables loaded");
         return Ok(());
     }
 
-    // Find shell
-    let shell = match find_shell(&packages) {
-        Some(shell) => shell,
-        None => {
-            eprintln!("No shell found in packages. Looking for CCP.COM, XCCP.COM, etc.");
-            return Err("No shell found".into());
-        }
-    };
-    eprintln!(
-        "Using shell: {} (load address: 0x{:04X})",
-        shell.name, shell.load_address
-    );
+    // Determine execution mode:
+    // 1. If packages with shell: use shell (optionally run command)
+    // 2. If only loose .com files: run first one directly at 0x100
+    let shell = find_shell(&packages);
+
+    // Validate we have something to run
+    if shell.is_none() && loose_files.is_empty() {
+        eprintln!("No shell found in packages and no .COM files provided.");
+        return Err("Nothing to run".into());
+    }
+
+    if let Some(ref s) = shell {
+        eprintln!(
+            "Using shell: {} (load address: 0x{:04X})",
+            s.name, s.load_address
+        );
+    }
 
     // Create filesystem from packages
     let base_fs = PackageDriveFS::from_packages(packages);
-    let overlay_fs = OverlayDriveFS::new(base_fs);
+    let mut overlay_fs = OverlayDriveFS::new(base_fs);
+
+    // Add loose .COM files to the overlay (A: drive)
+    for (filename, data) in &loose_files {
+        overlay_fs.write_file(filename, data)?;
+        //eprintln!("Added {} to A: drive", filename);
+    }
+
+    // Determine what to run and how
+    let (program_data, start_address, use_shell): (Vec<u8>, u16, bool) = if let Some(s) = shell {
+        // Shell mode: load shell, optionally pass command
+        (s.data, s.load_address, true)
+    } else {
+        // Direct mode: run first .com file at TPA (0x100)
+        let (first_name, first_data) = loose_files.first().unwrap();
+        //eprintln!("Running {} directly", first_name);
+        (first_data.clone(), 0x0100, false)
+    };
 
     // Create channel for keyboard input
     let (key_tx, key_rx) = mpsc::channel::<u8>();
@@ -263,8 +319,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let trace = args.trace;
     let command = args.command.clone();
-    let shell_data = shell.data;
-    let shell_address = shell.load_address;
 
     // Spawn emulator in blocking task
     let emu_handle = tokio::task::spawn_blocking(move || {
@@ -273,15 +327,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         emu.trace = trace;
         emu.mount(0, overlay_fs);
 
-        // Set shell for warm boot reload
-        emu.set_shell(&shell_data, shell_address);
+        if use_shell {
+            // Shell mode: set shell for warm boot, pass command as args
+            emu.set_shell(&program_data, start_address);
+        } else {
+            // Direct mode: load program at TPA, no shell for warm boot
+            emu.load_at(start_address, &program_data);
+        }
 
+        // Set command line args (works for both shell and direct mode)
         if !command.is_empty() {
             let cmd_line = command.join(" ");
             emu.set_args(&cmd_line);
         }
 
-        emu.run_from(shell_address)
+        emu.run_from(start_address)
     });
 
     // Spawn terminal input reader
@@ -320,11 +380,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     match result {
-        Ok(info) => {
-            eprintln!("\nProgram exited: {:?}", info.reason);
-            if info.reason == ExitReason::WarmBoot {
-                eprintln!("(Normal exit via warm boot)");
-            }
+        Ok(_info) => {
+            //eprintln!("\nProgram exited: {:?}", info.reason);
+            //if info.reason == ExitReason::WarmBoot {
+            //    eprintln!("(Normal exit via warm boot)");
+            //}
         }
         Err(e) => {
             eprintln!("\nError: {}", e);

@@ -21,7 +21,13 @@ pub enum CpmError {
     Eof,
 
     #[error("Invalid drive: {0}")]
-    InvalidDrive(u8),
+    InvalidDrive(char),
+
+    #[error("Drive not mounted: {0}")]
+    DriveNotMounted(char),
+
+    #[error("Lock poisoned")]
+    LockPoisoned,
 
     #[error("Disk full")]
     DiskFull,

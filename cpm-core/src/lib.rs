@@ -19,6 +19,7 @@ pub mod emulator;
 pub mod error;
 pub mod fs;
 pub mod package;
+pub mod workspace;
 
 pub use console::{CpmConsole, HeadlessConsole};
 pub use emulator::CpmEmulator;
@@ -28,6 +29,7 @@ pub use package::{
     load_package, load_package_from_path, load_packages, LoadedPackage, PackageAction,
     PackageDriveFS, PackageManifest,
 };
+pub use workspace::{DriveConfig, FileChangeEvent, ShellInfo, Workspace};
 
 /// Reason for program exit.
 #[derive(Debug, Clone, PartialEq)]

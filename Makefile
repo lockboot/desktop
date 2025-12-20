@@ -14,10 +14,10 @@ test: rust-test ts-test
 
 # Rust targets
 rust-build:
-	cargo build --release
+	cargo build --release --target x86_64-unknown-linux-musl
 
 rust-test:
-	cargo test
+	cargo test --target x86_64-unknown-linux-musl
 
 # TypeScript targets (win95-sim)
 ts-%:

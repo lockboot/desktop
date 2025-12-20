@@ -35,11 +35,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build packages
-        run: npm run pkg:build
-
       - name: Run tests
         run: npm test
+
+      - name: Build packages
+        run: npm run pkg:build      
 
       - name: Build app
         run: npm run build
