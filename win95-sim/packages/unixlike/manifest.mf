@@ -5,6 +5,7 @@
   "description": "Unix-like commands for CP/M",
   "outputDir": "unixlike",
   "files": [
+    { "src": "HELP.COM" },
     { "src": "LS.COM" },
     { "src": "CAT.COM" },
     { "src": "PWD.COM" },

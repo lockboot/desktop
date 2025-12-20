@@ -565,6 +565,19 @@ export class CpmEmulator implements Hal {
 
     const pc = this.z80.regs.pc;
 
+    // Check for HALT instruction - exit emulator
+    if (this.z80.regs.halted) {
+      this.running = false;
+      this.fs.closeAll();
+      this.onExit({
+        reason: 'halt',
+        message: 'CPU halted',
+        tStates: this.tStates,
+        pc,
+      });
+      return;
+    }
+
     if (pc === BDOS_ADDRESS) {
       await this.handleBdos();
     } else if (pc >= CBIOS_ADDRESS) {

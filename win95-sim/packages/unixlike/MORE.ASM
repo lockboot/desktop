@@ -71,6 +71,19 @@ NOTLF:  MOV     E,A
 
 DONE:   RET
 
+; Quit - clean up stack and exit
+QUIT:   POP     PSW         ; Clean up from NEWLN
+        POP     B
+        POP     H
+        ; Print newline before exit
+        MVI     E,13
+        MVI     C,CONOUT
+        CALL    BDOS
+        MVI     E,10
+        MVI     C,CONOUT
+        CALL    BDOS
+        RET
+
 ; Handle newline - decrement counter, pause if needed
 NEWLN:  PUSH    H
         PUSH    B
@@ -87,6 +100,12 @@ NEWLN:  PUSH    H
 
         MVI     C,CONIN     ; Wait for keypress
         CALL    BDOS
+
+        ; Check for 'q' or 'Q' to quit
+        CPI     'q'
+        JZ      QUIT
+        CPI     'Q'
+        JZ      QUIT
 
         ; Clear prompt line (CR + spaces + CR)
         MVI     E,13
@@ -116,8 +135,8 @@ USAGE:  LXI     D,USMSG
         RET
 
 LCOUNT: DB      LINES       ; Line counter storage
-PROMPT: DB      13,10,'--More--$'
-CLRLN:  DB      13,'        ',13,'$'
+PROMPT: DB      13,10,'--More-- (q to quit)$'
+CLRLN:  DB      13,'                    ',13,'$'
 NFMSG:  DB      'File not found',13,10,'$'
 USMSG:  DB      'Usage: MORE filename',13,10,'$'
 

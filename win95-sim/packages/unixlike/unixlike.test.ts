@@ -20,6 +20,7 @@ const cpm22Dir = join(__dirname, '../cpm22');
 // Commands that have .ASM source files to compile
 // LESS is excluded - it's an alias of MORE in the manifest
 const COMMANDS = [
+  { name: 'HELP' },
   { name: 'LS' },
   { name: 'CAT' },
   { name: 'RM' },
@@ -110,6 +111,56 @@ describe('Unix-like Commands Package', () => {
 
   // Test functional commands actually work
   describe('Functional commands', () => {
+    it('HELP should list topics when no arg', async () => {
+      const comFile = loadPackageFile(__dirname, 'HELP.COM');
+      if (!comFile) {
+        console.log('HELP.COM not built yet, skipping');
+        return;
+      }
+
+      const runner = new CpmRunner();
+      runner.addSourceFile('HELP.COM', comFile);
+      runner.addSourceFile('LS.DOC', 'LS - list files\x1A');
+      runner.addSourceFile('CAT.DOC', 'CAT - display file\x1A');
+
+      const result = await runner.run('A:HELP', { trace: false });
+      console.log('HELP output:', result.output);
+
+      expect(result.output).toMatch(/Available topics/i);
+      expect(result.output).toMatch(/LS/i);
+      expect(result.output).toMatch(/CAT/i);
+      expect(result.exitInfo?.reason).toBe('warmboot');
+    }, 30000);
+
+    it('HELP <topic> should display topic .DOC file', async () => {
+      const comFile = loadPackageFile(__dirname, 'HELP.COM');
+      if (!comFile) return;
+
+      const runner = new CpmRunner();
+      runner.addSourceFile('HELP.COM', comFile);
+      runner.addSourceFile('LS.DOC', 'LS - List directory contents\r\n\r\nUsage: LS [pattern]\x1A');
+
+      const result = await runner.run('A:HELP', { args: 'LS', trace: false });
+      console.log('HELP LS output:', result.output);
+
+      expect(result.output).toContain('List directory');
+      expect(result.output).toContain('Usage');
+      expect(result.exitInfo?.reason).toBe('warmboot');
+    }, 30000);
+
+    it('HELP should show error for missing topic', async () => {
+      const comFile = loadPackageFile(__dirname, 'HELP.COM');
+      if (!comFile) return;
+
+      const runner = new CpmRunner();
+      runner.addSourceFile('HELP.COM', comFile);
+
+      const result = await runner.run('A:HELP', { args: 'NONEXISTENT', trace: false });
+      console.log('HELP missing output:', result.output);
+
+      expect(result.output).toMatch(/no help/i);
+    }, 30000);
+
     it('LS should list files', async () => {
       const comFile = loadPackageFile(__dirname, 'LS.COM');
       if (!comFile) {
@@ -503,7 +554,7 @@ describe('Unix-like Commands Package', () => {
       expect(result.exitInfo?.reason).toBe('warmboot');
     }, 30000);
 
-    it('EXIT should warm boot', async () => {
+    it('EXIT should halt CPU', async () => {
       const comFile = loadPackageFile(__dirname, 'EXIT.COM');
       if (!comFile) {
         console.log('EXIT.COM not built yet, skipping');
@@ -515,8 +566,8 @@ describe('Unix-like Commands Package', () => {
 
       const result = await runner.run('A:EXIT', { trace: false });
 
-      // Should trigger warm boot
-      expect(result.exitInfo?.reason).toBe('warmboot');
+      // Should halt CPU (clean exit from emulator)
+      expect(result.exitInfo?.reason).toBe('halt');
     }, 30000);
 
     it('WHOAMI should print operator', async () => {
@@ -565,7 +616,8 @@ describe('Unix-like Commands Package', () => {
 
       expect(result.output).toContain('CP/M');
       expect(result.output).toContain('2.2');
-      expect(result.output).toContain('8080');
+      // CPU is auto-detected: 8080, 8085, or Z80
+      expect(result.output).toMatch(/8080|8085|Z80/);
     }, 30000);
 
     it('PAUSE should wait for keypress', async () => {

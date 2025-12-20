@@ -1,12 +1,8 @@
-; EXIT.ASM - Exit to system (Unix exit for CP/M)
-; Performs a warm boot
+; EXIT.ASM - Exit emulator (Unix exit for CP/M)
+; Uses HALT to signal emulator to exit cleanly
 ;
         ORG     100H
 
-BDOS    EQU     5
-WBOOT   EQU     0           ; Warm boot function
-
-START:  MVI     C,WBOOT
-        JMP     BDOS        ; Warm boot (doesn't return)
+START:  HLT                 ; Halt CPU - emulator exits
 
         END     START
