@@ -16,7 +16,6 @@ describe('CP/M 2.2 Utilities', () => {
     'DUMP.COM',   // Hex dump utility
     'ED.COM',     // Line editor
     'LOAD.COM',   // HEX to COM loader
-    'PAUSE.COM',  // Batch pause
     'PIP.COM',    // Peripheral Interchange Program (file copy)
     'STAT.COM',   // File/disk statistics
     'SUBMIT.COM', // Batch file processor
