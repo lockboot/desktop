@@ -53,7 +53,9 @@ PLOOP:  MOV     A,M
         ; Check for newline
         CPI     0AH         ; LF
         JNZ     NOTLF
+        PUSH    PSW         ; Save A (the LF character)
         CALL    NEWLN
+        POP     PSW         ; Restore A
 NOTLF:  MOV     E,A
         PUSH    H
         PUSH    B
@@ -114,7 +116,7 @@ USAGE:  LXI     D,USMSG
         RET
 
 LCOUNT: DB      LINES       ; Line counter storage
-PROMPT: DB      '--More--$'
+PROMPT: DB      13,10,'--More--$'
 CLRLN:  DB      13,'        ',13,'$'
 NFMSG:  DB      'File not found',13,10,'$'
 USMSG:  DB      'Usage: MORE filename',13,10,'$'

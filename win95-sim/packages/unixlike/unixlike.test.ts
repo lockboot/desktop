@@ -219,6 +219,128 @@ describe('Unix-like Commands Package', () => {
       expect(result.output).toContain('Line 3');
     }, 30000);
 
+    it('MORE without filename should show usage', async () => {
+      const comFile = loadPackageFile(__dirname, 'MORE.COM');
+      if (!comFile) {
+        console.log('MORE.COM not built yet, skipping');
+        return;
+      }
+
+      const runner = new CpmRunner();
+      runner.addSourceFile('MORE.COM', comFile);
+
+      const result = await runner.run('A:MORE', { trace: false });
+      console.log('MORE usage output:', result.output);
+
+      expect(result.output).toMatch(/usage/i);
+      expect(result.output).toMatch(/more/i);
+      expect(result.exitInfo?.reason).toBe('warmboot');
+    }, 30000);
+
+    it('MORE with non-existent file should show error', async () => {
+      const comFile = loadPackageFile(__dirname, 'MORE.COM');
+      if (!comFile) {
+        console.log('MORE.COM not built yet, skipping');
+        return;
+      }
+
+      const runner = new CpmRunner();
+      runner.addSourceFile('MORE.COM', comFile);
+
+      const result = await runner.run('A:MORE', { args: 'NOEXIST.TXT', trace: false });
+      console.log('MORE file not found output:', result.output);
+
+      expect(result.output).toMatch(/file not found/i);
+      expect(result.exitInfo?.reason).toBe('warmboot');
+    }, 30000);
+
+    it('MORE should page long files (>23 lines)', async () => {
+      const comFile = loadPackageFile(__dirname, 'MORE.COM');
+      if (!comFile) {
+        console.log('MORE.COM not built yet, skipping');
+        return;
+      }
+
+      const runner = new CpmRunner();
+      runner.addSourceFile('MORE.COM', comFile);
+
+      // Create a file with more than 23 lines to trigger paging
+      let longContent = '';
+      for (let i = 1; i <= 30; i++) {
+        longContent += `Line ${i}\r\n`;
+      }
+      longContent += '\x1A';
+      runner.addSourceFile('LONG.TXT', longContent);
+
+      // Provide a keypress to continue past the --More-- prompt
+      const result = await runner.run('A:MORE', {
+        args: 'LONG.TXT',
+        input: ' ',  // Space to continue
+        trace: false
+      });
+      console.log('MORE long file output:', result.output);
+
+      // Should show --More-- prompt for paging
+      expect(result.output).toMatch(/--More--/);
+      // Should contain lines from the file
+      expect(result.output).toContain('Line 1');
+      expect(result.exitInfo?.reason).toBe('warmboot');
+    }, 30000);
+
+    it('MORE should stop at EOF marker (Ctrl-Z)', async () => {
+      const comFile = loadPackageFile(__dirname, 'MORE.COM');
+      if (!comFile) {
+        console.log('MORE.COM not built yet, skipping');
+        return;
+      }
+
+      const runner = new CpmRunner();
+      runner.addSourceFile('MORE.COM', comFile);
+
+      // Create file with EOF marker in the middle
+      runner.addSourceFile('EOF.TXT', 'Before EOF\r\n\x1AAfter EOF\r\n');
+
+      const result = await runner.run('A:MORE', { args: 'EOF.TXT', trace: false });
+      console.log('MORE EOF output:', result.output);
+
+      // Should display content before EOF
+      expect(result.output).toContain('Before EOF');
+      // Should NOT display content after EOF marker
+      expect(result.output).not.toContain('After EOF');
+      expect(result.exitInfo?.reason).toBe('warmboot');
+    }, 30000);
+
+    it('MORE should preserve newlines in output', async () => {
+      const comFile = loadPackageFile(__dirname, 'MORE.COM');
+      if (!comFile) {
+        console.log('MORE.COM not built yet, skipping');
+        return;
+      }
+
+      const runner = new CpmRunner();
+      runner.addSourceFile('MORE.COM', comFile);
+
+      // Create a file with multiple lines
+      runner.addSourceFile('LINES.TXT', 'AAA\r\nBBB\r\nCCC\r\n\x1A');
+
+      const result = await runner.run('A:MORE', { args: 'LINES.TXT', trace: false });
+      console.log('MORE newlines output:', JSON.stringify(result.output));
+
+      // Verify the output contains the text
+      expect(result.output).toContain('AAA');
+      expect(result.output).toContain('BBB');
+      expect(result.output).toContain('CCC');
+
+      // Critical: verify newlines are preserved (LF = 0x0A)
+      // Lines should NOT run together
+      expect(result.output).not.toMatch(/AAABBB/);
+      expect(result.output).not.toMatch(/BBBCCC/);
+
+      // Verify LF characters are present in output
+      expect(result.output).toContain('\n');
+      expect(result.exitInfo?.reason).toBe('warmboot');
+    }, 30000);
+
     it('ECHO should print arguments', async () => {
       const comFile = loadPackageFile(__dirname, 'ECHO.COM');
       if (!comFile) {
