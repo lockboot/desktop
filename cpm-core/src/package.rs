@@ -256,7 +256,11 @@ pub fn action_matches_file(action: &PackageAction, filename: &str) -> bool {
 }
 
 /// Expand a submit template with the given basename and drive.
-pub fn expand_submit_template(action: &PackageAction, base_name: &str, drive: Option<char>) -> String {
+pub fn expand_submit_template(
+    action: &PackageAction,
+    base_name: &str,
+    drive: Option<char>,
+) -> String {
     let template = action
         .submit
         .as_ref()
@@ -321,10 +325,7 @@ impl PackageDriveFS {
 
     /// Remove a package by name.
     pub fn remove_package(&mut self, name: &str) -> bool {
-        let idx = self
-            .packages
-            .iter()
-            .position(|p| p.manifest.name == name);
+        let idx = self.packages.iter().position(|p| p.manifest.name == name);
         if let Some(idx) = idx {
             self.packages.remove(idx);
             // Rebuild files, origins, and actions
@@ -389,10 +390,7 @@ impl DriveFS for PackageDriveFS {
     }
 
     fn delete_file(&mut self, name: &str) -> bool {
-        eprintln!(
-            "PackageDriveFS is read-only, ignoring delete of {}",
-            name
-        );
+        eprintln!("PackageDriveFS is read-only, ignoring delete of {}", name);
         false
     }
 

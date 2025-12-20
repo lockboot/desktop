@@ -7,7 +7,7 @@
 all: build
 
 # Build everything
-build: rust-build ts-build
+build: rust-build ts-build ts-test ts-packages 
 
 # Test everything
 test: rust-test ts-test
@@ -20,11 +20,8 @@ rust-test:
 	cargo test
 
 # TypeScript targets (win95-sim)
-ts-build:
-	$(MAKE) -C win95-sim build
-
-ts-test:
-	$(MAKE) -C win95-sim test
+ts-%:
+	$(MAKE) -C win95-sim $*
 
 # Build packages (ZIP files)
 packages:
@@ -35,9 +32,9 @@ clean:
 	cargo clean
 	$(MAKE) -C win95-sim clean
 
-# Development build (debug)
+# Development server (win95-sim)
 dev:
-	cargo build
+	$(MAKE) -C win95-sim dev
 
 # Run the CLI
 run:

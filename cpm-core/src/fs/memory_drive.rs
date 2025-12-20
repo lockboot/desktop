@@ -101,10 +101,8 @@ mod tests {
 
     #[test]
     fn test_with_files() {
-        let fs = MemoryDriveFS::with_files([
-            ("test.com", vec![0xC9]),
-            ("hello.txt", b"Hello".to_vec()),
-        ]);
+        let fs =
+            MemoryDriveFS::with_files([("test.com", vec![0xC9]), ("hello.txt", b"Hello".to_vec())]);
 
         assert!(fs.exists("TEST.COM"));
         assert!(fs.exists("HELLO.TXT"));

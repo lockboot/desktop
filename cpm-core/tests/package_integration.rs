@@ -53,20 +53,14 @@ fn test_load_cpm22_package() {
 fn test_load_turbo_pascal_package() {
     let path = get_package_path("turbo-pascal-3.zip");
     if !path.exists() {
-        eprintln!(
-            "Skipping test - turbo-pascal-3.zip not found at {:?}",
-            path
-        );
+        eprintln!("Skipping test - turbo-pascal-3.zip not found at {:?}", path);
         return;
     }
 
     let pkg = load_package_from_path(&path).expect("Failed to load turbo-pascal-3.zip");
 
     assert_eq!(pkg.manifest.name, "Turbo Pascal 3");
-    assert!(
-        pkg.files.contains_key("TURBO.COM"),
-        "Missing TURBO.COM"
-    );
+    assert!(pkg.files.contains_key("TURBO.COM"), "Missing TURBO.COM");
 
     // Check for interactive script action
     let turbo_action = pkg.actions.iter().find(|a| a.id == "turbo3");
@@ -99,7 +93,11 @@ fn test_package_drive_fs_with_real_package() {
 
     // COM files start with machine code, not a magic header
     // Just verify it's a reasonable size for a shell
-    assert!(ccp.len() > 100, "CCP.COM seems too small: {} bytes", ccp.len());
+    assert!(
+        ccp.len() > 100,
+        "CCP.COM seems too small: {} bytes",
+        ccp.len()
+    );
 
     let files = fs.list_files();
     println!("PackageDriveFS has {} files", files.len());

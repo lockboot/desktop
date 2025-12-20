@@ -687,8 +687,7 @@ impl<C: CpmConsole, D: DriveFS> CpmEmulator<C, D> {
                 fcb.set_fd(handle);
 
                 // Write FCB back
-                self.memory[fcb_addr as usize..fcb_addr as usize + 36]
-                    .copy_from_slice(&fcb_mem);
+                self.memory[fcb_addr as usize..fcb_addr as usize + 36].copy_from_slice(&fcb_mem);
 
                 self.cpu.set_reg(Reg8::A, None, 0x00);
             } else {
@@ -804,8 +803,7 @@ impl<C: CpmConsole, D: DriveFS> CpmEmulator<C, D> {
         }
 
         // Copy from DMA
-        data[offset..offset + RECORD_SIZE]
-            .copy_from_slice(&self.memory[dma..dma + RECORD_SIZE]);
+        data[offset..offset + RECORD_SIZE].copy_from_slice(&self.memory[dma..dma + RECORD_SIZE]);
 
         self.open_files[idx].3 = true; // Mark modified
 

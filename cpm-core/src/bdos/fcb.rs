@@ -163,9 +163,7 @@ impl<'a> Fcb<'a> {
 
     /// Random record number (24-bit, from R0, R1, R2).
     pub fn random_record(&self) -> u32 {
-        (self.mem[0x21] as u32)
-            | ((self.mem[0x22] as u32) << 8)
-            | ((self.mem[0x23] as u32) << 16)
+        (self.mem[0x21] as u32) | ((self.mem[0x22] as u32) << 8) | ((self.mem[0x23] as u32) << 16)
     }
 
     /// Set random record number.
