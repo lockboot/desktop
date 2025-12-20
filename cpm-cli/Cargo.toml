@@ -1,0 +1,16 @@
+[package]
+name = "cpm-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CP/M emulator CLI"
+
+[[bin]]
+name = "cpm"
+path = "src/main.rs"
+
+[dependencies]
+cpm-core = { path = "../cpm-core" }
+clap = { version = "4", features = ["derive"] }
+crossterm = "0.28"
+tokio.workspace = true
