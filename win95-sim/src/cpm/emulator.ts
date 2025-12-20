@@ -424,12 +424,30 @@ export class CpmEmulator implements Hal {
     // Load program at TPA
     this.loadProgram(binary);
 
-    // Set command line
+    // Set command line and FCBs
     if (args) {
       this.setCommandLine(args);
-      this.parseFCB(FCB1_ADDRESS, args);
+      // Parse first argument into FCB1
+      const argParts = args.trim().toUpperCase().split(/\s+/);
+      if (argParts[0]) {
+        this.parseFCBArg(FCB1_ADDRESS, argParts[0]);
+      }
+      // Parse second argument into FCB2 (only first 16 bytes used)
+      if (argParts[1]) {
+        this.parseFCBArg(FCB2_ADDRESS, argParts[1]);
+      } else {
+        // Clear FCB2 if no second argument
+        for (let i = 0; i < 16; i++) {
+          this.memory[FCB2_ADDRESS + i] = i >= 1 && i < 12 ? 0x20 : 0;
+        }
+      }
     } else {
       this.memory[0x0080] = 0;
+      // Clear both FCBs
+      for (let i = 0; i < 16; i++) {
+        this.memory[FCB1_ADDRESS + i] = i >= 1 && i < 12 ? 0x20 : 0;
+        this.memory[FCB2_ADDRESS + i] = i >= 1 && i < 12 ? 0x20 : 0;
+      }
     }
 
     // Initialize CPU state
@@ -445,10 +463,10 @@ export class CpmEmulator implements Hal {
     this.dma = DEFAULT_DMA;
   }
 
-  /** Parse a filename argument into FCB at given address */
-  private parseFCB(address: number, arg: string): void {
-    // Clear FCB
-    for (let i = 0; i < 36; i++) {
+  /** Parse a single filename argument into FCB at given address */
+  private parseFCBArg(address: number, arg: string): void {
+    // Clear FCB (at least first 16 bytes for FCB2 compatibility)
+    for (let i = 0; i < 16; i++) {
       this.memory[address + i] = 0;
     }
     // Fill name/type with spaces
@@ -456,7 +474,7 @@ export class CpmEmulator implements Hal {
       this.memory[address + i] = 0x20;
     }
 
-    arg = arg.trim().toUpperCase().split(/\s+/)[0]; // First argument only
+    arg = arg.trim().toUpperCase();
 
     // Check for drive prefix
     let drive = 0;
@@ -471,14 +489,29 @@ export class CpmEmulator implements Hal {
     const name = dotPos >= 0 ? arg.slice(0, dotPos) : arg;
     const ext = dotPos >= 0 ? arg.slice(dotPos + 1) : '';
 
-    // Fill name (8 chars)
-    for (let i = 0; i < Math.min(name.length, 8); i++) {
-      this.memory[address + 1 + i] = name.charCodeAt(i);
+    // Fill name (8 chars), handle * wildcard -> ???????
+    for (let i = 0; i < 8; i++) {
+      if (name === '*' || (name.length > i && name[i] === '*')) {
+        // Fill rest with ?
+        for (let j = i; j < 8; j++) {
+          this.memory[address + 1 + j] = '?'.charCodeAt(0);
+        }
+        break;
+      } else if (i < name.length) {
+        this.memory[address + 1 + i] = name.charCodeAt(i);
+      }
     }
 
-    // Fill extension (3 chars)
-    for (let i = 0; i < Math.min(ext.length, 3); i++) {
-      this.memory[address + 9 + i] = ext.charCodeAt(i);
+    // Fill extension (3 chars), handle * wildcard -> ???
+    for (let i = 0; i < 3; i++) {
+      if (ext === '*' || (ext.length > i && ext[i] === '*')) {
+        for (let j = i; j < 3; j++) {
+          this.memory[address + 9 + j] = '?'.charCodeAt(0);
+        }
+        break;
+      } else if (i < ext.length) {
+        this.memory[address + 9 + i] = ext.charCodeAt(i);
+      }
     }
   }
 

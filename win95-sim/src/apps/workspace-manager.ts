@@ -368,12 +368,23 @@ async function createWorkspaceWindow(desktop: Desktop, options: WorkspaceOptions
         // Pad hex column to consistent width
         const hexStr = hexParts.join(' ').padEnd(bytesPerLine * 2 + (bytesPerLine / grouping - 1), ' ');
 
-        // ASCII column
+        // ASCII column (with HTML escaping)
         const asciiChars: string[] = [];
         for (const byte of chunk) {
-          asciiChars.push(byte >= 0x20 && byte < 0x7F ? String.fromCharCode(byte) : '.');
+          if (byte >= 0x20 && byte < 0x7F) {
+            const char = String.fromCharCode(byte);
+            // Escape HTML special characters
+            if (char === '<') asciiChars.push('&lt;');
+            else if (char === '>') asciiChars.push('&gt;');
+            else if (char === '&') asciiChars.push('&amp;');
+            else if (char === '"') asciiChars.push('&quot;');
+            else asciiChars.push(char);
+          } else {
+            asciiChars.push('.');
+          }
         }
-        const asciiStr = asciiChars.join('').padEnd(bytesPerLine, ' ');
+        // Pad with spaces (no escaping needed for spaces)
+        const asciiStr = asciiChars.join('') + ' '.repeat(Math.max(0, bytesPerLine - chunk.length));
 
         lines.push(`<span class="ws-hex-offset">${offsetStr}</span>  ${hexStr}  <span class="ws-hex-ascii">|${asciiStr}|</span>`);
       }

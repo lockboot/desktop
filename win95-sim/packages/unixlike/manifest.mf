@@ -1,0 +1,28 @@
+{
+  "id": "unixlike",
+  "name": "Unix-like Commands",
+  "version": "1.0",
+  "description": "Unix-like commands for CP/M",
+  "outputDir": "unixlike",
+  "files": [
+    { "src": "LS.COM" },
+    { "src": "CAT.COM" },
+    { "src": "PWD.COM" },
+    { "src": "CD.COM" },
+    { "src": "RM.COM" },
+    { "src": "CP.COM" },
+    { "src": "MV.COM" },
+    { "src": "MORE.COM" },
+    { "src": "MORE.COM", "dst": "LESS.COM" },
+    { "src": "ECHO.COM" },
+    { "src": "TOUCH.COM" },
+    { "src": "WHOAMI.COM" },
+    { "src": "UNAME.COM" },
+    { "src": "WHICH.COM" },
+    { "src": "EXIT.COM" },
+    { "src": "PAUSE.COM" }
+  ],
+  "meta": {
+    "type": "utilities"
+  }
+}
